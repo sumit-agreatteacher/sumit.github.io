@@ -1,20 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sumit's Birthday Game</title>
-  <style>
-    body {
-      background: #111;
-      color: #fff;
-      font-family: sans-serif;
-      text-align: center;
-      padding-top: 100px;
-    }
-  </style>
+  <meta charset="utf-8">
+  <title>Tenure Track Game — Demo</title>
+  <link rel="stylesheet" href="game.css">
 </head>
 <body>
-  <h1>Welcome, Professor Sumit 🚀</h1>
-  <p>Your tenure quest begins now...</p>
+<div id="characters">
+  <!-- Sumit -->
+  <div class="character-card" id="char-sumit">
+    <img src="game/src/photo_raw/Sumit.png" class="character-avatar">
+    <div class="character-label">PI</div>
+    <div class="character-energy">
+      <div id="energy-sumit" class="energy-bar"></div>
+      <span id="energy-text-sumit" class="energy-text">100</span>
+    </div>
+    <div class="speech-bubble" id="bubble-sumit"></div>
+  </div>
+
+  <!-- Wanted (PhD) -->
+  <div class="character-card" id="char-phd">
+    <img src="game/src/wanted2.png" class="character-avatar">
+    <div class="character-label">PhD</div>
+    <div class="character-energy">
+      <div id="energy-phd" class="energy-bar"></div>
+      <span id="energy-text-phd" class="energy-text">0</span>
+    </div>
+    <div class="speech-bubble" id="bubble-phd"></div>
+  </div>
+
+  <!-- Wanted (Postdoc) -->
+  <div class="character-card" id="char-postdoc">
+    <img src="game/src/wanted2.png" class="character-avatar">
+    <div class="character-label">Postdoc</div>
+    <div class="character-energy">
+      <div id="energy-postdoc" class="energy-bar"></div>
+      <span id="energy-text-postdoc" class="energy-text">0</span>
+    </div>
+    <div class="speech-bubble" id="bubble-postdoc"></div>
+  </div>
+
+  <!-- Wanted (coPI) -->
+  <div class="character-card" id="char-coPI">
+    <img src="game/src/wanted2.png" class="character-avatar">
+    <div class="character-label">co-PI</div>
+    <div class="character-energy">
+      <div id="energy-coPI" class="energy-bar"></div>
+      <span id="energy-text-coPI" class="energy-text">0</span>
+    </div>
+    <div class="speech-bubble" id="bubble-coPI"></div>
+  </div>
+</div>
+
+
+  <!-- 右上角：状态栏 -->
+  <div id="status">
+    <div class="stat turn">Turn: <span id="currentTurn">1</span> / <span id="totalTurns">12</span></div>
+    <div class="stat time">Time: <span id="time">90</span> days</div>
+    <div class="stat funding">Funding: <span id="funding">500</span></div>
+    <div class="stat progress">Progress: <span id="progress">0</span></div>
+    <div class="stat respect">Respect: <span id="respect">20</span></div>
+  </div>
+
+  <!-- 中间地图（放建筑） -->
+ <div id="mapCampus">
+  <canvas id="world"></canvas>
+  <!-- 定义建筑区域 -->
+  <div class="building" id="lab" data-building="lab" style="top: 120px; left: 700px; width:200px; height:180px;">Lab</div>
+  <div class="building" id="dorm" data-building="dorm" style="top: 200px; left: 320px; width:180px; height:150px;">Dorm</div>
+  <div class="building" id="bar" data-building="bar" style="top: 300px; left: 510px; width:180px; height:150px;">Bar</div>
+  <div class="building" id="lecture" data-building="lecture" style="top: 120px; left: 1000px; width:200px; height:200px;">Lecture</div>
+  <div class="building" id="office" data-building="office" style="top: 40px; left: 520px; width:150px; height:150px;">Office</div>
+ </div>
+
+  <!-- 日志 / 通知 -->
+  <div id="log"></div>
+
+<!-- 下方卡牌区 -->
+<div id="cardArea">
+  <div class="card-slot" data-slot="sumit">
+    <img src="game/src/photo_raw/sumit.png" class="card" draggable="true" data-character="sumit" alt="sumit card">
+  </div>
+  <div class="card-slot empty">Empty</div>
+  <div class="card-slot empty">Empty</div>
+  <div class="card-slot empty">Empty</div>
+</div>
+
+  <!-- 右下角按钮 -->
+  <div id="controls">
+    <button id="startBtn">▶ Start</button>
+  </div>
+
+  <!-- 结束/Reveal 覆盖层 -->
+  <div id="overlay" class="hidden">
+    <div id="overlay-content">
+      <h1 id="overlay-title"></h1>
+      <p id="overlay-msg"></p>
+      <button id="overlay-close">Close</button>
+    </div>
+  </div>
+
+  <!-- 招募界面 -->
+<div id="recruit-screen" style="display:none;">
+  <h2>There are some PhD candidates interested in your project! Choose one:</h2>
+  <div id="candidate-container"></div>
+</div>
+
+  <script src="characters.js"></script>
+  <script src="map.js"></script>
 </body>
 </html>
