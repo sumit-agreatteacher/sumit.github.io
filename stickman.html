@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Stickman Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+</head>
+<body>
+<script>
+const config = {
+  type: Phaser.AUTO,
+  width: 800,
+  height: 600,
+  backgroundColor: '#d0f0ff',
+  parent: document.body,
+  scene: { preload, create, update }
+};
+
+const game = new Phaser.Game(config);
+
+let stickman;
+let zones = {};
+
+function preload() {
+  // 你的头像图，可以是 png / jpg
+  this.load.image('head', 'game/src/photo_raw/Sumit.png');
+}
+
+function create() {
+  // 创建一个容器，里面放身体和头像
+  stickman = this.add.container(400, 300);
+
+  // 用 Graphics 画火柴人身体（不画头）
+  const body = this.add.graphics();
+  drawStickmanBody(body);  
+  stickman.add(body);
+
+  // 加头像
+  const head = this.add.image(0, -20, 'head'); 
+  head.setDisplaySize(40, 40);   // 调整大小
+  head.setCrop(0, 0, head.width, head.height); // 可选，裁剪
+  head.setCircle(20); // 可选，如果你要圆形头像效果
+
+  stickman.add(head);
+
+  // 让容器可拖拽
+  stickman.setSize(50, 80);  // 定义交互区域
+  stickman.setInteractive();
+  this.input.setDraggable(stickman);
+
+  this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+    gameObject.x = dragX;
+    gameObject.y = dragY;
+  });
+}
+
+function drawStickmanBody(g) {
+  g.lineStyle(2, 0x000000);
+  g.beginPath();
+  g.moveTo(0, 0); g.lineTo(0, 40);   // 身体
+  g.moveTo(0, 10); g.lineTo(-15, 20); // 左手
+  g.moveTo(0, 10); g.lineTo(15, 20);  // 右手
+  g.moveTo(0, 40); g.lineTo(-10, 60); // 左腿
+  g.moveTo(0, 40); g.lineTo(10, 60);  // 右腿
+  g.strokePath();
+}
+
+
+// 判断在哪个区域
+function checkZone(scene, x, y, g) {
+  if (Phaser.Geom.Rectangle.Contains(zones.lab.getBounds(), x, y)) {
+    scene.add.text(x, y - 40, "Working in Lab", { fontSize: '14px', fill: '#000' });
+  } else if (Phaser.Geom.Rectangle.Contains(zones.office.getBounds(), x, y)) {
+    scene.add.text(x, y - 40, "Typing in Office", { fontSize: '14px', fill: '#000' });
+  } else if (Phaser.Geom.Rectangle.Contains(zones.classroom.getBounds(), x, y)) {
+    scene.add.text(x, y - 40, "Teaching", { fontSize: '14px', fill: '#000' });
+  } else if (Phaser.Geom.Rectangle.Contains(zones.dorm.getBounds(), x, y)) {
+    scene.add.text(x, y - 40, "Sleeping", { fontSize: '14px', fill: '#000' });
+  } else if (Phaser.Geom.Rectangle.Contains(zones.bar.getBounds(), x, y)) {
+    scene.add.text(x, y - 40, "Drinking Beer", { fontSize: '14px', fill: '#000' });
+  } else {
+    scene.add.text(x, y - 40, "Walking...", { fontSize: '14px', fill: '#000' });
+  }
+}
+
+function update() {}
+</script>
+</body>
+</html>

@@ -1,286 +1,241 @@
-// ---------------------- Game state ----------------------
+// === 全局变量 ===
 let currentTurn = 1;
-let totalTurns = 12;
-let timeLeft = 90; // days per turn
+const totalTurns = 12;
+const timeforTurn = 2; // 每轮 90 天
+let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
-let extensionApplied = false;
 
-let funding = 500;
+// 状态数值
+let funding = 100;
 let progress = 0;
-let respect = 20;
-let accidents = 0; // experimental accidents count
+let respect = 0;
+let energy = {sumit: 100, phd: 0, postdoc: 0, coPI: 0};
 
-const characters = {
-  sumit: { energy: 100, location: "dorm" },
-  shayne: { energy: 100, location: "dorm" }
-};
+let placement = {}; // 记录人物位置
+// === 画布 & 背景 ===
 
-
-// ---------------------- Utilities & UI ----------------------
-function log(msg) {
-  const logDiv = document.getElementById("log");
-  const line = document.createElement("div");
-  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  logDiv.prepend(line);
-}
-
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
+// === UI更新 ===
 function updateUI() {
   document.getElementById("currentTurn").textContent = currentTurn;
   document.getElementById("totalTurns").textContent = totalTurns;
   document.getElementById("time").textContent = timeLeft;
-  document.getElementById("funding").textContent = Math.floor(funding);
-  document.getElementById("progress").textContent = Math.floor(progress);
-  document.getElementById("respect").textContent = Math.floor(respect);
+  document.getElementById("funding").textContent = funding;
+  document.getElementById("progress").textContent = progress;
+  document.getElementById("respect").textContent = respect;
 
-  document.getElementById("energy-sumit").style.width = clamp(characters.sumit.energy,0,100) + "%";
-  document.getElementById("energy-shayne").style.width = clamp(characters.shayne.energy,0,100) + "%";
+  document.getElementById("energy-sumit").style.width = characters.sumit.energy + "%";
+  document.getElementById("energy-shayne").style.width = characters.shayne.energy + "%";
 }
 
-// ---------------------- Avatar rendering helpers ----------------------
-function removeAvatarFromAllBuildings(character) {
-  document.querySelectorAll(`.building .avatar[data-character="${character}"]`).forEach(el => el.remove());
-}
-
-function placeCharacterAvatar(buildingElem, character) {
-  // clean existing same-character avatar in that building (to avoid duplicates)
-  buildingElem.querySelectorAll(`.avatar[data-character="${character}"]`).forEach(el => el.remove());
-
-  // remove from other buildings (so avatar appears only once)
-  removeAvatarFromAllBuildings(character);
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
-  avatar.dataset.character = character;
-  avatar.draggable = true;
-  avatar.textContent = character === "sumit" ? "👨" : "👦";
-
-  // allow dragging avatar to move to another building
-  avatar.addEventListener("dragstart", (ev) => {
-    ev.dataTransfer.setData("character", character);
-    // mark source building (optional)
-  });
-
-  buildingElem.appendChild(avatar);
-}
-
-// place avatars for initial state
-function renderAllAvatars() {
-  // clear all
-  document.querySelectorAll(".building .avatar").forEach(el => el.remove());
-  for (const charName in characters) {
-    const loc = characters[charName].location;
-    const b = document.querySelector(`.building[data-building="${loc}"]`);
-    if (b) placeCharacterAvatar(b, charName);
-  }
-}
-
-// ---------------------- Drag & Drop wiring ----------------------
-// enable dragging from card area
+// ======================
+// 初始化拖拽
+// ======================
 document.querySelectorAll(".card").forEach(card => {
   card.addEventListener("dragstart", e => {
-    e.dataTransfer.setData("character", card.dataset.character);
+    e.dataTransfer.setData("character", e.target.dataset.character);
+    e.dataTransfer.setData("origin", e.target.parentElement.dataset.slot || "building");
   });
 });
 
-// buildings accept drops (cards or avatars)
-document.querySelectorAll(".building").forEach(building => {
-  building.addEventListener("dragover", e => e.preventDefault());
-  building.addEventListener("drop", e => {
+document.querySelectorAll(".building, .card-slot").forEach(target => {
+  target.addEventListener("dragover", e => e.preventDefault());
+
+  target.addEventListener("drop", e => {
     e.preventDefault();
-    const character = e.dataTransfer.getData("character");
-    if (!character) return;
-    // update model
-    characters[character].location = building.dataset.building;
-    // update UI
-    placeCharacterAvatar(building, character);
-    log(`${character} moved to ${building.dataset.building}`);
+    const charId = e.dataTransfer.getData("character");
+    const origin = e.dataTransfer.getData("origin");
+    const card = document.querySelector(`[data-character="${charId}"]`);
+    const slot = target.querySelector(".slot");
+
+    // 如果有 Empty，占位隐藏
+    if (slot) slot.style.display = "none";
+
+    // 清空已有的卡片（一个格子最多 1 人）
+    target.innerHTML = "";
+    target.appendChild(card);
+
+    // 如果原来的格子空了，显示 Empty
+    if (origin && origin !== "building") {
+      const originSlot = document.querySelector(`[data-slot="${charId}"]`);
+      if (originSlot && !originSlot.querySelector("img")) {
+        originSlot.innerHTML = "Empty";
+        originSlot.classList.add("empty");
+      }
+    }
+
+    // 在日志记录
+    const buildingName = target.dataset.building;
+    if (buildingName) {
+      logAction(`${charId} moved to ${buildingName}`);
+    } else {
+      logAction(`${charId} returned to card area`);
+    }
   });
 });
 
-// also allow dropping outside buildings to "unassign" (back to idle)
-// drop on cardArea (puts them back to default dorm)
-const cardArea = document.getElementById("cardArea");
-cardArea.addEventListener("dragover", e => e.preventDefault());
-cardArea.addEventListener("drop", e => {
-  e.preventDefault();
-  const character = e.dataTransfer.getData("character");
-  if (!character) return;
-  // put back to dorm (or initial)
-  characters[character].location = "dorm";
-  renderAllAvatars();
-  log(`${character} returned to dorm`);
-});
+function logAction(msg) {
+  const log = document.getElementById("log");
+  const entry = document.createElement("div");
+  entry.textContent = msg;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
 
-// ---------------------- Core daily simulation ----------------------
+// === 每天计算 ===
 function simulateDay() {
-  // one day passes
   timeLeft--;
 
-  // For each character, apply location effects
   for (let name in characters) {
     let c = characters[name];
     switch (c.location) {
       case "dorm":
-        c.energy = clamp(c.energy + 2, 0, 100);
+        c.energy = Math.min(100, c.energy + 2);
         break;
       case "bar":
         respect += 1;
-        c.energy = clamp(c.energy - 1, 0, 100);
+        c.energy = Math.max(0, c.energy - 1);
         break;
       case "lab":
-        // experiments: progress & chance of accident
         progress += 2;
         respect += 0.2;
-        c.energy = clamp(c.energy - 1, 0, 100);
-        if (Math.random() < 0.08) { // 8% chance daily per-person in lab
-          accidents++;
-          progress = Math.max(0, progress - 5);
-          log(`⚠️ Accident in lab! Progress -5 (accidents=${accidents})`);
-        }
+        c.energy = Math.max(0, c.energy - 1);
         break;
       case "lecture":
         respect += 1.5;
         funding += 5;
-        c.energy = clamp(c.energy - 2, 0, 100);
-        break;
-      default:
+        c.energy = Math.max(0, c.energy - 2);
         break;
     }
   }
 
-  // check for burnout (Sumit)
-  if (characters.sumit.energy <= 0) {
-    // immediate Burnout ending
-    stopTimer();
-    showEnding("Burnout", "Sumit burned out during the tenure scramble... but you still get this!");
-    return;
-  }
-
-  // check funding immediate fail
-  if (funding < 0) {
-    stopTimer();
-    showEnding("Funding Disaster", "Funding went negative. Oops! But Happy Birthday anyway!");
-    return;
-  }
-
-  // turn end check
   if (timeLeft <= 0) {
-    // end-of-turn
-    stopTimer(); // stop daily ticks until user restarts
-    log(`--- Turn ${currentTurn} ended. ---`);
-
-    // extension chance if at or after turn 9 and not applied
-    if (!extensionApplied && currentTurn >= 9 && currentTurn <= 12) {
-      const probs = {9:0.6, 10:0.4, 11:0.2, 12:0.1};
-      const p = probs[currentTurn] || 0;
-      if (Math.random() < p) {
-        totalTurns += 4;
-        extensionApplied = true;
-        log(`🔁 Extension granted! +4 turns (now total ${totalTurns})`);
-        alert(`Extension granted! You received extra 4 turns.`);
-      } else {
-        log(`No extension this time (chance ${Math.round(p*100)}%).`);
-      }
-    }
-
+    clearInterval(timer);
+    timer = null;
+    startNextRound();
     currentTurn++;
-    if (currentTurn > totalTurns) {
-      // game over -> evaluate ending
-      evaluateEndings();
-      return;
+    if (currentTurn <= totalTurns) {
+      timeLeft = timeforTurn;
+      alert(`Turn ${currentTurn - 1} finished! Starting Turn ${currentTurn}.`);
     } else {
-      // prepare next turn
-      timeLeft = 90;
-      updateUI();
-      log(`Starting Turn ${currentTurn}. Press Start to continue.`);
-      return;
+      alert("🎉 Game Over! Happy Birthday Sumit!");
     }
   }
 
   updateUI();
+  drawBackground();
 }
 
-// ---------------------- Timer controls ----------------------
-function startTimer() {
-  if (timer) return;
-  timer = setInterval(simulateDay, 1000); // 1 second = 1 day
-  document.getElementById("startBtn").textContent = "⏸ Pause";
-  document.getElementById("startBtn").style.background = "#f39c12";
-  log("⏳ Timer started");
+function makeCharacterSpeak(characterId, message) {
+  const bubble = document.getElementById("bubble-" + characterId);
+  if (!bubble) return;
+
+  bubble.textContent = message;
+  bubble.style.display = "block";
+
+  // 自动 3 秒后隐藏
+  setTimeout(() => {
+    bubble.style.display = "none";
+  }, 3000);
+
+  // 同时写入 log
+  addLog(characterId + " says: \"" + message + "\"");
 }
 
-function stopTimer() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-    document.getElementById("startBtn").textContent = "▶ Start";
-    document.getElementById("startBtn").style.background = "#4caf50";
-    log("⏸ Timer stopped");
-  }
-}
+function addLog(message) {
+  const logDiv = document.getElementById("log");
+  if (!logDiv) return;
 
-// Start/pause toggle
+  const entry = document.createElement("div");
+  const now = new Date().toLocaleTimeString();
+  entry.textContent = `[${now}] ${message}`;
+  logDiv.appendChild(entry);
+
+  logDiv.scrollTop = logDiv.scrollHeight; // 保证总是滚到最底
+}
+// === 按钮 ===
 document.getElementById("startBtn").addEventListener("click", () => {
-  if (!timer) startTimer();
-  else stopTimer();
+  if (!timer && currentTurn <= totalTurns) {
+    timer = setInterval(simulateDay, 1000); // 1秒=1天
+  }
 });
+window.addEventListener("DOMContentLoaded", () => {
+  // 开始的时候 sumit 说话
+  makeCharacterSpeak("sumit", "Welcome to the campus!");
+});
+//updateUI();
 
-// ---------------------- End / evaluation ----------------------
-function evaluateEndings() {
-  // Check conditions in priority:
-  // - Funding negative handled earlier
-  // - Burnout handled earlier
-  // - Experimental chaos: accidents >= 5
-  if (accidents >= 5) {
-    showEnding("Experimental Chaos", "The lab was chaotic (cats?). Still... Happy Birthday!");
-    return;
-  }
 
-  // True Tenure: progress >= 100 & funding >= 0 & Sumit not burned out
-  if (progress >= 100 && funding >= 0 && characters.sumit.energy > 0) {
-    // Nobel secret: extra conditions
-    if (respect >= 50 && funding >= 10000) {
-      showEnding("Nobel Prize", "You exceeded expectations — Nobel-level! And... Happy Birthday!");
-    } else {
-      showEnding("True Tenure", "The No-Zero-Deadtime Clock works! Tenure granted. Happy Birthday!");
-    }
-    return;
-  }
+function showPhdChoices() {
+  const recruitScreen = document.getElementById("recruit-screen");
+  const container = document.getElementById("candidate-container");
+  container.innerHTML = "";
 
-  // Teaching Hero
-  if (progress < 100 && respect >= 70) {
-    showEnding("Teaching Hero", "Your students rallied and won it for you! Tenure via teaching. Happy Birthday!");
-    return;
-  }
+  // 随机选3个（这里先固定用3个示例）
+  const choices = phdCandidates;  
 
-  // Default fallback: Funding disaster or incomplete
-  showEnding("Incomplete", "You didn't finish the clock in time, but here's a birthday surprise anyway!");
+  choices.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "candidate-card";
+    card.innerHTML = `
+      <img src="${c.photo}" alt="${c.name}">
+      <h3>${c.name}</h3>
+      <p>Energy: ${c.energy}</p>
+      <p>Progress: +${c.progressRate}</p>
+      <p>Funding: +${c.usingfundingRate}</p>
+      <p>Teaching: +${c.teachingRate}</p>
+      <p>Bar chance: ${(c.barProbability*100).toFixed(0)}%</p>
+      <p>Dorm Recovery: +${c.dormRecoveryRate}</p>
+      <p><em>${c.special}</em></p>
+    `;
+    card.onclick = () => selectPhd(c);
+    container.appendChild(card);
+  });
+
+  recruitScreen.style.display = "block";
 }
 
-// overlay
-function showEnding(title, msg) {
-  const overlay = document.getElementById("overlay");
-  document.getElementById("overlay-title").textContent = title;
-  document.getElementById("overlay-msg").textContent = msg + " 🎂";
-  overlay.classList.remove("hidden");
-  // stop timer if running
-  stopTimer();
+function selectPhd(character) {
+  // 1. 把候选人填进左边的“PhD”卡槽
+  const phdSlot = document.getElementById("char-phd");
+  if (phdSlot) {
+    phdSlot.innerHTML = `
+      <img src="${character.photo}" class="character-avatar">
+      <div class="character-label">${character.name}</div>
+      <div class="character-energy">
+        <div id="energy-${character.id}" class="energy-bar" style="width:${character.energy}%;"></div>
+        <span id="energy-text-${character.id}" class="energy-text">${character.energy}</span>
+      </div>
+      <div class="speech-bubble" id="bubble-${character.id}"></div>
+    `;
+  }
+
+  // 2. 把这个角色放进全局人物池
+  characters[character.id] = character;
+
+  // 3. 关闭招募界面
+  document.getElementById("recruit-screen").style.display = "none";
+
+  // 4. 写入日志
+  addLog(`${character.name} 加入团队了！`);
 }
 
-document.getElementById("overlay-close").addEventListener("click", () => {
-  const ov = document.getElementById("overlay");
-  ov.classList.add("hidden");
-});
+function renderSidebar() {
+  const teamDiv = document.getElementById("team");
+  teamDiv.innerHTML = "";
+  for (let id in characters) {
+    const c = characters[id];
+    const div = document.createElement("div");
+    div.innerHTML = `<img src="${c.photo}" width="40"> ${c.name} (${c.type || "PhD"})`;
+    teamDiv.appendChild(div);
+  }
+}
 
-// ---------------------- Init ----------------------
-renderAllAvatars();
-updateUI();
-log("Game initialized. Drag characters onto buildings, then press Start.");
 
-// ensure initial placement visuals
-for (const ch in characters) {
-  const b = document.querySelector(`.building[data-building="${characters[ch].location}"]`);
-  if (b) placeCharacterAvatar(b, ch);
+function startNextRound() {
+  //currentTurn++;
+  //logMessage(`第 ${currentTurn} 轮开始！`);
+
+  if (currentTurn === 2) {
+    showPhdChoices();  // 🎯 在第2轮开始时弹出选择界面
+  }
 }

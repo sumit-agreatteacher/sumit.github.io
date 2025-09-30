@@ -4,60 +4,79 @@
   <meta charset="utf-8">
   <title>Tenure Track Game — Demo</title>
   <link rel="stylesheet" href="game.css">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 </head>
+
 <body>
+<div id="rules">Target: achieve 100% progress toward tenure by bringing the characters into the different buildings to work.</div>
+
 <div id="characters">
-  <!-- Sumit -->
-  <div class="character-card" id="char-sumit">
-    <img src="game/src/photo_raw/Sumit.png" class="character-avatar">
-    <div class="character-label">PI</div>
-    <div class="character-energy">
-      <div id="energy-sumit" class="energy-bar"></div>
-      <span id="energy-text-sumit" class="energy-text">100</span>
+  <div class="char_top">
+    <!-- Sumit -->
+    <div class="character-card" id="char-sumit">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/photo_raw/Sumit.png" class="character-avatar" alt="Sumit">
+      </div>
+      <div class="character-label">PI</div>
+      <div class="speech-bubble" id="bubble-sumit"></div>
+      <div class="character-energy">
+        <div id="energy-sumit" class="energy-bar"></div>
+        <span id="energy-text-sumit" class="energy-text">100</span>
+      </div>
     </div>
-    <div class="speech-bubble" id="bubble-sumit"></div>
   </div>
 
-  <!-- Wanted (PhD) -->
-  <div class="character-card" id="char-phd">
-    <img src="game/src/wanted2.png" class="character-avatar">
-    <div class="character-label">PhD</div>
-    <div class="character-energy">
-      <div id="energy-phd" class="energy-bar"></div>
-      <span id="energy-text-phd" class="energy-text">0</span>
+  <div class="char_top">
+    <!-- Wanted (PhD) -->
+    <div class="character-card" id="char-phd">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="PhD">
+      </div>
+      <div class="character-label">PhD</div>
+      <div class="speech-bubble" id="bubble-phd"></div>
+      <div class="character-energy">
+        <div id="energy-phd" class="energy-bar"></div>
+        <span id="energy-text-phd" class="energy-text">0</span>
+      </div>
     </div>
-    <div class="speech-bubble" id="bubble-phd"></div>
   </div>
 
-  <!-- Wanted (Postdoc) -->
-  <div class="character-card" id="char-postdoc">
-    <img src="game/src/wanted2.png" class="character-avatar">
-    <div class="character-label">Postdoc</div>
-    <div class="character-energy">
-      <div id="energy-postdoc" class="energy-bar"></div>
-      <span id="energy-text-postdoc" class="energy-text">0</span>
+  <div class="char_top">
+    <!-- Wanted (Postdoc) -->
+    <div class="character-card" id="char-postdoc">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Postdoc">
+      </div>
+      <div class="character-label">Postdoc</div>
+      <div class="speech-bubble" id="bubble-postdoc"></div>
+      <div class="character-energy">
+        <div id="energy-postdoc" class="energy-bar"></div>
+        <span id="energy-text-postdoc" class="energy-text">0</span>
+      </div>
     </div>
-    <div class="speech-bubble" id="bubble-postdoc"></div>
   </div>
 
-  <!-- Wanted (coPI) -->
-  <div class="character-card" id="char-coPI">
-    <img src="game/src/wanted2.png" class="character-avatar">
-    <div class="character-label">co-PI</div>
-    <div class="character-energy">
-      <div id="energy-coPI" class="energy-bar"></div>
-      <span id="energy-text-coPI" class="energy-text">0</span>
+  <div class="char_top">
+    <!-- Wanted (coPI) -->
+    <div class="character-card" id="char-coPI">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="co-PI">
+      </div>
+      <div class="character-label">co-PI</div>
+      <div class="speech-bubble" id="bubble-coPI"></div>
+      <div class="character-energy">
+        <div id="energy-coPI" class="energy-bar"></div>
+        <span id="energy-text-coPI" class="energy-text">0</span>
+      </div>
     </div>
-    <div class="speech-bubble" id="bubble-coPI"></div>
   </div>
 </div>
-
 
   <!-- 右上角：状态栏 -->
   <div id="status">
     <div class="stat turn">Turn: <span id="currentTurn">1</span> / <span id="totalTurns">12</span></div>
     <div class="stat time">Time: <span id="time">90</span> days</div>
-    <div class="stat funding">Funding: <span id="funding">500</span></div>
+    <div class="stat funding">Funding: <span id="funding">100</span></div>
     <div class="stat progress">Progress: <span id="progress">0</span></div>
     <div class="stat respect">Respect: <span id="respect">20</span></div>
   </div>
@@ -65,12 +84,30 @@
   <!-- 中间地图（放建筑） -->
  <div id="mapCampus">
   <canvas id="world"></canvas>
-  <!-- 定义建筑区域 -->
-  <div class="building" id="lab" data-building="lab" style="top: 120px; left: 700px; width:200px; height:180px;">Lab</div>
-  <div class="building" id="dorm" data-building="dorm" style="top: 200px; left: 320px; width:180px; height:150px;">Dorm</div>
-  <div class="building" id="bar" data-building="bar" style="top: 300px; left: 510px; width:180px; height:150px;">Bar</div>
-  <div class="building" id="lecture" data-building="lecture" style="top: 120px; left: 1000px; width:200px; height:200px;">Lecture</div>
-  <div class="building" id="office" data-building="office" style="top: 40px; left: 520px; width:150px; height:150px;">Office</div>
+  <!-- 使用真实图片元素以便相对定位 -->
+  <img id="campus-img" src="game/src/campus/Campus.jpg" alt="Campus" />
+
+  <!-- 定义建筑区域（使用百分比定位，和带标签的子元素） -->
+  <div class="building" id="lab" data-building="lab" style="top:23%; left:45%; width:14%; height: 25%;">
+    <span class="building-label">Lab</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="dorm" data-building="dorm" style="top:40%; left:12%; width:12%; height:17%;">
+    <span class="building-label">Dorm</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="bar" data-building="bar" style="top:55%; left:30%; width:13%; height:20%;">
+    <span class="building-label">Bar</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="lecture" data-building="lecture" style="top:30%; left:72%; width:14%; height:22%;">
+    <span class="building-label">Lecture</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="office" data-building="office" style="top:10%; left:27%; width:15%; height:20%;">
+    <span class="building-label">Office</span>
+    <div class="occupants"></div>
+  </div>
  </div>
 
   <!-- 日志 / 通知 -->
