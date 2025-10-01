@@ -61,6 +61,19 @@ function updateUI() {
   setEnergyBar('energy-phd', getCharEnergy('phd'));
   setEnergyBar('energy-postdoc', getCharEnergy('postdoc'));
   setEnergyBar('energy-coPI', getCharEnergy('coPI'));
+
+  // update the numeric energy text next to each bar if present
+  function setEnergyText(elemId, value) {
+    const el = document.getElementById(elemId);
+    if (!el) return;
+    const v = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    el.textContent = v;
+  }
+
+  setEnergyText('energy-text-sumit', getCharEnergy('sumit'));
+  setEnergyText('energy-text-phd', getCharEnergy('phd'));
+  setEnergyText('energy-text-postdoc', getCharEnergy('postdoc'));
+  setEnergyText('energy-text-coPI', getCharEnergy('coPI'));
 }
 
 // ======================
@@ -132,6 +145,8 @@ document.querySelectorAll(".building, .card-slot").forEach(target => {
         } else if (characters[charId]) {
           characters[charId].location = buildingName;
         }
+        // update UI immediately so user sees placement effects if any
+        if (typeof updateUI === 'function') updateUI();
     } else {
         logAction(`${charId} returned to card area`);
         // returned to card area -> clear location
@@ -141,6 +156,7 @@ document.querySelectorAll(".building, .card-slot").forEach(target => {
         } else if (characters[charId]) {
           characters[charId].location = null;
         }
+        if (typeof updateUI === 'function') updateUI();
     }
   });
 });
@@ -160,26 +176,89 @@ function simulateDay() {
   // If characters is an array, iterate items; if it's an object map, iterate values
   let charList = Array.isArray(characters) ? characters : Object.values(characters);
   for (let c of charList) {
-    switch (c.location) {
-      case "dorm":
-        c.energy = Math.min(100, c.energy + typeof c.dormRecoverRate === 'number' ? c.dormRecoverRate : 2);
+    applyLocationEffects(c);
+  }
+
+  // helper: apply per-character effects depending on where they are
+  function applyLocationEffects(c) {
+    if (!c || !c.location) return;
+    const loc = c.location;
+    // helper random check
+    const chance = p => Math.random() < (p || 0);
+
+    switch (loc) {
+      case 'dorm':
+        // restore energy
+        const gainDorm = (c.energyGainatDorm || c.dormRecoverRate || 2);
+        c.energy = Math.min(100, (c.energy || 0) + gainDorm);
+        addLog(`${c.name} rested in dorm +${gainDorm} energy`);
         break;
-      case "bar":
-        respect += 1;
-        c.energy = Math.max(0, c.energy - 1);
+      case 'office':
+        // funding chance and energy loss
+        if (chance(c.fundingGainatOfficeProbability)) {
+          const inc = (c.fundingGainatOffice || 1);
+          funding += inc;
+          addLog(`${c.name} secured funding +${inc}`);
+        }
+        const lossOff = (c.energyLossatOffice || 1);
+        c.energy = Math.max(0, (c.energy || 0) - lossOff);
         break;
-      case "lab":
-        // progress contribution depends on character's progressRate
-        progress += (typeof c.progressRate === 'number') ? c.progressRate : 2;
-        respect += 0.2;
-        c.energy = Math.max(0, c.energy - 1);
+      case 'lab':
+        // progress gain or small loss depending on probability
+        if (chance(c.progressGainatLabProbability)) {
+          const inc = (c.progressGainatLab || c.progressRate || 1);
+          progress += inc;
+          addLog(`${c.name} worked in lab +${inc} progress`);
+        } else {
+          const dec = (c.progressLossatLab || 0.1);
+          progress = Math.max(0, progress - dec);
+          addLog(`${c.name} had a setback in lab -${dec} progress`);
+        }
+        // energy and funding effects
+        const lossLab = (c.energyLossatLab || 1);
+        c.energy = Math.max(0, (c.energy || 0) - lossLab);
+        if (typeof c.fundingLossatLab === 'number') {
+          funding = Math.max(0, funding - c.fundingLossatLab);
+          addLog(`${c.name} used funding -${c.fundingLossatLab}`);
+        }
         break;
-      case "lecture":
-        respect += 1.5;
-        funding += 5;
-        c.energy = Math.max(0, c.energy - 2);
+      case 'lecture':
+        if (chance(c.respectGainatLectureProbability || 1)) {
+          const incR = (c.respectGainatLecture || 1);
+          respect += incR;
+          addLog(`${c.name} gave a lecture +${incR} respect`);
+        }
+        c.energy = Math.max(0, (c.energy || 0) - (c.energyLossatLecture || 1));
+        break;
+      case 'bar':
+        // bar outcomes: mostly small energy/respect gain, small chance of big loss
+        if (chance(c.energyGainatBarProbability)) {
+          const eg = (c.energyGainatBar || 1);
+          c.energy = Math.min(100, (c.energy || 0) + eg);
+          addLog(`${c.name} had a drink +${eg} energy`);
+        } else if (chance(c.energyLossatBarProbability)) {
+          const el = (c.energyLossatBar || 5);
+          c.energy = Math.max(0, (c.energy || 0) - el);
+          addLog(`${c.name} overdid it -${el} energy`);
+        }
+        if (chance(c.respectGainatBarProbability)) {
+          const rg = (c.respectGainatBar || 1);
+          respect += rg;
+        } else if (chance(c.respectLossatBarProbability)) {
+          const rl = (c.respectLossatBar || 0.1);
+          respect = Math.max(0, respect - rl);
+        }
+        break;
+      default:
+        // unknown location: do nothing
         break;
     }
+
+    // keep global numbers within reasonable bounds
+    funding = Math.max(0, Math.round(funding * 100) / 100);
+    progress = Math.max(0, Math.round(progress * 100) / 100);
+    respect = Math.max(0, Math.round(respect * 100) / 100);
+    c.energy = Math.max(0, Math.min(100, Math.round((c.energy || 0) * 100) / 100));
   }
 
   if (timeLeft <= 0) {
@@ -194,7 +273,8 @@ function simulateDay() {
       alert("🎉 Game Over! Happy Birthday Sumit!");
     }
   }
-
+  // write a daily summary so changes are visible in the log
+  addLog(`Day summary — Funding: ${funding}, Progress: ${progress}, Respect: ${respect}`);
   updateUI();
   drawBackground();
 }

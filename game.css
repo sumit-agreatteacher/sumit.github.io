@@ -21,97 +21,117 @@ body {
   font-size: 15px;
   white-space: normal;   /* 默认，允许换行 */
 }
-/* 左上角人物 */
+/* 左侧响应式侧栏：人物 + 日志（使用百分比/视口单位保持比例） */
 #characters {
   position: absolute;
-  top: 150px;
-  left: 20px;
+  top: 6vh;            /* responsive top offset */
+  left: 2%;
+  width: 16%;         /* proportional width */
+  max-width: 260px;   /* don't grow too large on very wide screens */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 20;
+  align-items: stretch;
 }
 
 .char_top {
   display: flex;
-  margin-bottom: 16px;
-  gap: 12px;
+  gap: 8px;
+  width: 100%;
 }
 
 .character-card {
-  position: relative; /* 让内部的绝对定位元素以卡片为基准定位 */
+  position: relative;
   display: flex;
-  flex-direction: column; /* 垂直排列：头像/标签在上，能量条在下 */
-  align-items: flex-start; /* 可改为 center 或 start */
-  margin-bottom: 12px;
-  padding: 6px;
+  flex-direction: column;
+  align-items: flex-start; /* left-align contents */
+  padding: 8px 8px 8px 10px; /* small left padding so items don't touch edge */
   background: rgba(255,255,255,0.02);
   border-radius: 8px;
-  min-width: 90px;
+  width: 100%;        /* fill sidebar width */
+  /* avatar width used to position speech bubbles */
+  --avatar-w: 30%;
 }
 
+.character-avatar-wrapper { display:flex; justify-content:flex-start; width:100%; }
 .character-avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 80%;
+  width: 30%;         /* slightly smaller avatar */
+  max-width: 96px;    /* reduce maximum size */
+  height: auto;
+  aspect-ratio: 1/1;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .character-label {
-  margin-left: 5px;
+  margin-top: 6px;
   font-weight: bold;
-  width: 70px; /* 给标签固定宽度，排版更整齐 */
+  width: auto;
   text-align: center;
+  font-size: clamp(12px, 1.6vw, 16px);
 }
 
 .character-energy {
-  margin-left: 10px;
+  margin-top: 6px;
   position: relative;
-  width: 100px;
-  height: 12px;
+  width: 55%;
+  height: 9px;      /* thinner energy bar */
   background: #ddd;
-  border-radius: 6px;
-  max-width: 120px;
+  border-radius: 5px;
+  align-self: flex-start; /* align the bar under the avatar */
 }
 
 .energy-bar {
   height: 100%;
   background: green;
-  border-radius: 6px;
+  border-radius: 5px;
   width: 0%;
 }
 
 .energy-text {
   position: absolute;
-  right: -45px;
-  top: 0px;
-  font-size: 20px;
+  left: calc(var(--avatar-w) + 100px);
+  top: -2px;
+  font-size: 0.85rem; /* smaller number text */
+  color: #fff;
 }
 
 .speech-bubble {
   position: absolute;
-  top: -12px;            /* 上移一点，靠近头像上方 */
-  left: 80px;           /* 向右偏移，可按需调整（调小使气泡更靠近头像） */
-  display: none;         /* 保持默认隐藏，JS 控制显示 */
-  z-index: 20;           /* 让气泡置于上层 */
-  white-space: nowrap;       /* 不换行 */
-  overflow: hidden;         /* 超出隐藏 */
-  text-overflow: ellipsis;  /* 溢出显示省略号 */
-  max-width: 360px;         /* 更长的气泡以容纳更长指示文本 */
+  /* vertically center against the card and place to the right of the avatar */
+  top: 50%;
+  transform: translateY(-50%);
+  /* place just to the right of the avatar */
+  left: calc(var(--avatar-w) + 14px);
+  display: none;         /* controlled by JS */
+  z-index: 40;           /* above most UI */
+  white-space: nowrap;   /* keep single line */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;      /* smaller to fit sidebar */
   background: #ffffff;
   color: #000;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 10px;
 }
-/* 日志 */
+/* 日志：放在左侧底部区域，使用视口高度保持比例 */
 #log {
-    margin-top:800px;
-    width: 350px;
-    max-height: 180px;
-    overflow-y: auto;
-    font-size: 13px;
-    color: #ffffff;
-    opacity: 0.9;
-    border: 1px solid #fff;   /* 白色边框 */
-    border-radius: 8px;       /* 圆角，可选 */
-    padding: 8px;             /* 内边距，让文字不贴边 */
-    background: rgba(0, 0, 0, 0.4); /* 半透明黑背景，提升可读性 */
+  position: absolute;
+  left: 2%;
+  bottom: 3vh;        /* distance from bottom scales with viewport */
+  width: 16%;
+  max-width: 260px;
+  height: 28vh;       /* proportional height */
+  overflow-y: auto;
+  font-size: 0.9rem;
+  color: #ffffff;
+  opacity: 0.95;
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 18;
 }
 
 /* 右上角状态条 */
