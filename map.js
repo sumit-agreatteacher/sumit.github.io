@@ -4,9 +4,11 @@ const totalTurns = 12;
 const timeforTurn = 90; // 每轮 90 天
 let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
+// milliseconds per in-game day (configurable). Change this to speed up/slow down time.
+let dayMs = 100; // default 1000ms = 1s per day
 
 // 状态数值
-let funding = 100;
+let funding = 10000;
 let progress = 0;
 let respect = 0;
 let energy = {sumit: 100, phd: 0, postdoc: 0, coPI: 0};
@@ -25,6 +27,16 @@ function updateUI() {
 
   // Update energy bars (width + color) for characters. Use multiple fallbacks
   function getCharEnergy(id) {
+    // If the UI uses role slots like 'phd' that map to a selected character,
+    // check for a DOM element `#char-<id>` with a dataset.character mapping and use that id.
+    try {
+      const slotEl = document.getElementById('char-' + id);
+      if (slotEl && slotEl.dataset && slotEl.dataset.character) {
+        id = slotEl.dataset.character;
+      }
+    } catch (e) {
+      // ignore DOM errors and continue with original id
+    }
     // characters may be an object map or an array in different versions
     if (typeof characters === 'object') {
       if (Array.isArray(characters)) {
@@ -91,9 +103,10 @@ document.querySelectorAll(".building, .card-slot").forEach(target => {
 
   target.addEventListener("drop", e => {
     e.preventDefault();
-    const charId = e.dataTransfer.getData("character");
-    const origin = e.dataTransfer.getData("origin");
-    const card = document.querySelector(`[data-character="${charId}"]`);
+  const charId = e.dataTransfer.getData("character");
+  const origin = e.dataTransfer.getData("origin");
+  // Only select draggable card images (class .card) so we don't pick left-side avatars
+  const card = document.querySelector(`.card[data-character="${charId}"]`);
     const slot = target.querySelector(".slot");
 
   // 如果有 Empty 占位（card-slot 的文字），在目标为卡槽时清除
@@ -107,14 +120,14 @@ document.querySelectorAll(".building, .card-slot").forEach(target => {
     // place the dragged card into the slot
     target.appendChild(card);
   } else {
-    // for buildings: only remove an existing direct .card image (not labels)
-    const existingCard = target.querySelector('.card');
-    if (existingCard) existingCard.remove();
+    // for buildings: append to the occupants container so multiple people can occupy the same building
     const occ = target.querySelector('.occupants');
     if (occ) {
-      occ.appendChild(card);
+      // avoid re-appending if the card is already inside
+      if (!occ.contains(card)) occ.appendChild(card);
     } else {
-      target.appendChild(card);
+      // no occupants container; just append to building but don't remove other cards
+      if (!target.contains(card)) target.appendChild(card);
     }
   }
 
@@ -204,15 +217,34 @@ function simulateDay() {
         c.energy = Math.max(0, (c.energy || 0) - lossOff);
         break;
       case 'lab':
-        // progress gain or small loss depending on probability
-        if (chance(c.progressGainatLabProbability)) {
-          const inc = (c.progressGainatLab || c.progressRate || 1);
-          progress += inc;
-          addLog(`${c.name} worked in lab +${inc} progress`);
+        // If there's no funding, the lab cannot produce progress
+        if (funding <= 0) {
+          addLog(`${c.name} couldn't make progress in the lab due to lack of funding`);
         } else {
-          const dec = (c.progressLossatLab || 0.1);
-          progress = Math.max(0, progress - dec);
-          addLog(`${c.name} had a setback in lab -${dec} progress`);
+          // Stochastic approach: single random draw decides gain / loss / no-change
+          const gain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
+          let pGain = Number(c.progressGainatLabProbability ?? 1);
+          let pLoss = Number(c.progressLossatLabProbability ?? 0);
+          // clamp probabilities to [0,1]
+          pGain = Math.max(0, Math.min(1, pGain));
+          pLoss = Math.max(0, Math.min(1, pLoss));
+          // ensure combined threshold doesn't exceed 1
+          if (pGain + pLoss > 1) {
+            // normalize loss so gain has priority
+            pLoss = Math.max(0, 1 - pGain);
+          }
+
+          const r = Math.random();
+          if (r < pGain) {
+            progress += gain;
+            addLog(`${c.name} randomly worked in lab +${gain} progress`);
+          } else if (r < pGain + pLoss) {
+            const dec = Number(c.progressLossatLab ?? 0);
+            progress = Math.max(0, progress - dec);
+            addLog(`${c.name} randomly had a setback in lab -${dec} progress`);
+          } else {
+            addLog(`${c.name} had no progress change in lab today`);
+          }
         }
         // energy and funding effects
         const lossLab = (c.energyLossatLab || 1);
@@ -264,12 +296,16 @@ function simulateDay() {
   if (timeLeft <= 0) {
     clearInterval(timer);
     timer = null;
-    startNextRound();
-    currentTurn++;
-    if (currentTurn <= totalTurns) {
+    // advance to next turn first so startNextRound() runs at the beginning of that turn
+    if (currentTurn < totalTurns) {
+      const finishedTurn = currentTurn;
+      currentTurn++;
       timeLeft = timeforTurn;
-      alert(`Turn ${currentTurn - 1} finished! Starting Turn ${currentTurn}.`);
+      // now start the next round (this will e.g. show PhD choices when currentTurn === 2)
+      startNextRound();
+      alert(`Turn ${finishedTurn} finished! Starting Turn ${currentTurn}.`);
     } else {
+      // no more turns
       alert("🎉 Game Over! Happy Birthday Sumit!");
     }
   }
@@ -309,7 +345,39 @@ function addLog(message) {
 // === 按钮 ===
 document.getElementById("startBtn").addEventListener("click", () => {
   if (!timer && currentTurn <= totalTurns) {
-    timer = setInterval(simulateDay, 1000); // 1秒=1天
+    // start interval using the configurable dayMs
+    timer = setInterval(simulateDay, dayMs);
+  }
+});
+window.addEventListener("DOMContentLoaded", () => {
+  makeCharacterSpeak("sumit", "Welcome to the campus!");
+  // short follow-up instructions from Sumit (in English) - speak sentence by sentence
+  const introLines = [
+    "Drag the cards from the bottom into buildings",
+    "Different buildings have different effects.",
+    "Dorm restores energy.",
+    "Office for funding.",
+    "Lab increases progress but using funding.",
+    "Lecture brings respect.",
+    "Bar can increase or decrease respect.",
+    "You can drag anyone to anywhere at any time.",
+    "Click Start to begin (1 second = 1 day).",
+    "Each turn lasts 90 days.",
+    "Before the end of turn 12, ",
+    "Your goal is to raise Progress to 100%!"
+  ];
+  const initialDelay = 3000; // wait after the first welcome bubble
+  const interval = 3500; // time between sentences (ms)
+  introLines.forEach((line, i) => {
+    setTimeout(() => {
+      makeCharacterSpeak("sumit", line);
+    }, initialDelay + i * interval);
+  });
+});
+//updateUI();
+document.getElementById("startBtn").addEventListener("click", () => {
+  if (!timer && currentTurn <= totalTurns) {
+    timer = setInterval(simulateDay, dayMs);
   }
 });
 window.addEventListener("DOMContentLoaded", () => {
@@ -345,44 +413,621 @@ function showPhdChoices() {
   const container = document.getElementById("candidate-container");
   container.innerHTML = "";
 
-  // 随机选3个（这里先固定用3个示例）
-  const choices = phdCandidates;  
+  // choose 3 candidates based on current respect
+  function sampleRandom(arr, n) {
+    const out = [];
+    if (!Array.isArray(arr) || arr.length === 0) return out;
+    const copy = arr.slice();
+    // shuffle
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    for (let i = 0; i < Math.min(n, copy.length); i++) out.push(copy[i]);
+    // if not enough unique items, fill by random picks (allow duplicates)
+    while (out.length < n) {
+      out.push(arr[Math.floor(Math.random() * arr.length)]);
+    }
+    return out;
+  }
+
+  const level1 = phdCandidates.filter(p => Number(p.level) === 1);
+  const level2 = phdCandidates.filter(p => Number(p.level) === 2);
+  let choices = [];
+  if (respect >= 0 && respect < 10) {
+    // 2 from level1, 1 from level2
+    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
+  } else if (respect >= 10 && respect < 20) {
+    // 2 from level2, 1 from level1
+    choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
+  } else {
+    // fallback: pick any 3
+    choices = sampleRandom(level2, 3);
+  }
 
   choices.forEach(c => {
+    // compute average expected values (per day) for display
+    const progGain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
+    const pGain = Number(c.progressGainatLabProbability ?? c.progressGainatLabProbability ?? 1) || 0;
+    const progLoss = Number(c.progressLossatLab ?? 0);
+    const pLoss = Number(c.progressLossatLabProbability ?? 0) || 0;
+    const expectedProgress = progGain * pGain - progLoss * pLoss;
+
+    const fundGain = Number(c.fundingGainatOffice ?? c.usingfundingRate ?? c.getfundingRate ?? 0);
+    const fundP = Number(c.fundingGainatOfficeProbability ?? 0) || 0;
+    const expectedFunding = fundGain * fundP;
+
+    const dormGain = Number(c.energyGainatDorm ?? c.dormRecoverRate ?? 0);
+    const officeLoss = Number(c.energyLossatOffice ?? 0);
+    const labLoss = Number(c.energyLossatLab ?? 0);
+    const lectureLoss = Number(c.energyLossatLecture ?? 0);
+    const barGain = Number(c.energyGainatBar ?? 0);
+    const barPGain = Number(c.energyGainatBarProbability ?? c.barProbability ?? 0) || 0;
+    const barLoss = Number(c.energyLossatBar ?? 0);
+    const barPLoss = Number(c.energyLossatBarProbability ?? 0) || 0;
+    const expectedBarEnergy = barGain * barPGain - barLoss * barPLoss;
+    const teachingRate = Number(c.respectGainatLecture);
+
     const card = document.createElement("div");
     card.className = "candidate-card";
     card.innerHTML = `
       <img src="${c.photo}" alt="${c.name}">
       <h3>${c.name}</h3>
-      <p>Energy: ${c.energy}</p>
-      <p>Progress: +${c.progressRate}</p>
-      <p>Funding: +${c.usingfundingRate}</p>
-      <p>Teaching: +${c.teachingRate}</p>
-      <p>Bar chance: ${(c.barProbability*100).toFixed(0)}%</p>
-      <p>Dorm Recovery: +${c.dormRecoveryRate}</p>
-      <p><em>${c.special}</em></p>
+      <p>Energy (start): ${c.energy}</p>
+      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
+      <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
+      <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
+      <p>Teaching: +${teachingRate ?? 0}</p>
+      <p><em>${c.special ?? ''}</em></p>
     `;
     card.onclick = () => selectPhd(c);
     container.appendChild(card);
   });
 
+  // add a skip button so the player can choose none
+  // remove existing skip button if present
+  let existingSkip = document.getElementById('recruit-skip-btn');
+  if (existingSkip) existingSkip.remove();
+  const skipWrap = document.createElement('div');
+  skipWrap.style.textAlign = 'center';
+  skipWrap.style.marginTop = '12px';
+  const skipBtn = document.createElement('button');
+  skipBtn.id = 'recruit-skip-btn';
+  skipBtn.textContent = 'None of these';
+  skipBtn.style.padding = '8px 12px';
+  skipBtn.style.fontSize = '16px';
+  skipBtn.style.cursor = 'pointer';
+  skipBtn.onclick = () => {
+    // close the recruit screen and log the skip
+    document.getElementById('recruit-screen').style.display = 'none';
+    addLog('Player skipped recruitment this round.');
+  };
+  skipWrap.appendChild(skipBtn);
+  container.appendChild(skipWrap);
+
   recruitScreen.style.display = "block";
 }
 
 function selectPhd(character) {
-  // 加到全局人物池
-  characters[character.id].push = character;
+  // Add the selected candidate to the global characters pool
+  function normalizeCandidate(src) {
+    const o = Object.assign({}, src);
+    // canonicalize field names with sensible fallbacks
+    o.energy = Number(o.energy ?? 100);
+    o.energyGainatDorm = Number(o.energyGainatDorm ?? o.dormRecoverRate ?? 0);
+    o.energyLossatOffice = Number(o.energyLossatOffice ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLab = Number(o.energyLossatLab ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLecture = Number(o.energyLossatLecture ?? 1);
+    o.energyGainatBar = Number(o.energyGainatBar ?? 0);
+    o.energyGainatBarProbability = Number(o.energyGainatBarProbability ?? o.barProbability ?? 0);
+    o.energyLossatBar = Number(o.energyLossatBar ?? 0);
+    o.energyLossatBarProbability = Number(o.energyLossatBarProbability ?? 0);
 
-  // 重新渲染左边和卡牌区
-  if (typeof renderSidebar === "function") renderSidebar();
-  if (typeof renderCardArea === "function") renderCardArea();
+    o.fundingGainatOffice = Number(o.fundingGainatOffice ?? o.usingfundingRate ?? o.getfundingRate ?? 0);
+    o.fundingGainatOfficeProbability = Number(o.fundingGainatOfficeProbability ?? 0);
+    o.fundingLossatLab = Number(o.fundingLossatLab ?? 0);
 
-  // 关闭招募界面
-  document.getElementById("recruit-screen").style.display = "none";
+    o.progressGainatLab = Number(o.progressGainatLab ?? o.progressRate ?? 0);
+    o.progressGainatLabProbability = Number(o.progressGainatLabProbability ?? 0);
+    o.progressLossatLab = Number(o.progressLossatLab ?? 0);
+    o.progressLossatLabProbability = Number(o.progressLossatLabProbability ?? 0);
 
-  // 在日志里写入
-  logMessage(`${character.name} 加入团队了！`);
+    o.respectGainatLecture = Number(o.respectGainatLecture ?? 0);
+    o.respectGainatLectureProbability = Number(o.respectGainatLectureProbability ?? 0);
+    o.respectGainatBar = Number(o.respectGainatBar ?? 0);
+    o.respectGainatBarProbability = Number(o.respectGainatBarProbability ?? 0);
+    o.respectLossatBar = Number(o.respectLossatBar ?? 0);
+    o.respectLossatBarProbability = Number(o.respectLossatBarProbability ?? 0);
+
+    o.level = o.level ?? 1;
+    o.hired = !!o.hired;
+    o.location = null;
+    return o;
+  }
+
+  if (Array.isArray(characters)) {
+    const exists = characters.find(c => c && c.id === character.id);
+    if (!exists) {
+      const newChar = normalizeCandidate(character);
+      characters.push(newChar);
+    }
+  } else {
+    characters[character.id] = normalizeCandidate(character);
+  }
+
+  // Update the left-side PhD slot card (if present)
+  const phdCard = document.getElementById('char-phd');
+  if (phdCard) {
+    const avatar = phdCard.querySelector('.character-avatar');
+    if (avatar) avatar.src = character.photo;
+    const label = phdCard.querySelector('.character-label');
+    if (label) label.textContent = character.name;
+    const energyText = document.getElementById('energy-text-phd');
+    if (energyText) energyText.textContent = character.energy || 0;
+    // make the phd card reference this character id so lookups can map 'phd' -> actual id
+    phdCard.dataset.character = character.id;
+    // also populate the global energy fallback so updateUI/getCharEnergy finds a value for 'phd'
+    if (typeof energy === 'object') energy.phd = Number(character.energy) || 0;
+  }
+
+  // Place a draggable card in the first available card-slot at the bottom
+  const slots = Array.from(document.querySelectorAll('.card-slot'));
+  let placed = false;
+  for (let s of slots) {
+    if (!s.querySelector('.card')) {
+      // clear empty placeholder text/class
+      s.classList.remove('empty');
+      s.textContent = '';
+
+      const cardImg = document.createElement('img');
+      cardImg.src = character.photo;
+      cardImg.className = 'card';
+      cardImg.draggable = true;
+      cardImg.dataset.character = character.id;
+      cardImg.alt = character.name + ' card';
+
+      // set the slot id so drag origin is tracked
+      s.dataset.slot = character.id;
+      s.appendChild(cardImg);
+
+      // attach dragstart handler for the newly created card
+      cardImg.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('character', e.target.dataset.character);
+        e.dataTransfer.setData('origin', e.target.parentElement.dataset.slot || 'building');
+      });
+
+      placed = true;
+      break;
+    }
+  }
+
+  if (!placed) {
+    addLog(`No empty card slot available to place ${character.name}'s card.`);
+  }
+
+  // Close the recruit UI and refresh UI
+  document.getElementById('recruit-screen').style.display = 'none';
+  if (typeof renderSidebar === 'function') renderSidebar();
+  if (typeof updateUI === 'function') updateUI();
+
+  addLog(`${character.name} joined the team.`);
 }
+
+function showPostdocChoices() {
+  const recruitScreen = document.getElementById("recruit-screen");
+  const container = document.getElementById("candidate-container");
+  container.innerHTML = "";
+
+  // choose 3 candidates based on current respect
+  function sampleRandom(arr, n) {
+    const out = [];
+    if (!Array.isArray(arr) || arr.length === 0) return out;
+    const copy = arr.slice();
+    // shuffle
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    for (let i = 0; i < Math.min(n, copy.length); i++) out.push(copy[i]);
+    // if not enough unique items, fill by random picks (allow duplicates)
+    while (out.length < n) {
+      out.push(arr[Math.floor(Math.random() * arr.length)]);
+    }
+    return out;
+  }
+
+  const level1 = postdocCandidates.filter(p => Number(p.level) === 1);
+  const level2 = postdocCandidates.filter(p => Number(p.level) === 2);
+  let choices = [];
+  if (respect >= 10 && respect < 20) {
+    // 2 from level1, 1 from level2
+    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
+  } else if (respect >= 30 && respect < 40) {
+    // 2 from level2, 1 from level1
+    choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
+  } else {
+    // fallback: pick any 3
+    choices = sampleRandom(level2, 3);
+  }
+
+  choices.forEach(c => {
+    // compute average expected values (per day) for display
+    const progGain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
+    const pGain = Number(c.progressGainatLabProbability ?? c.progressGainatLabProbability ?? 1) || 0;
+    const progLoss = Number(c.progressLossatLab ?? 0);
+    const pLoss = Number(c.progressLossatLabProbability ?? 0) || 0;
+    const expectedProgress = progGain * pGain - progLoss * pLoss;
+
+    const fundGain = Number(c.fundingGainatOffice ?? c.usingfundingRate ?? c.getfundingRate ?? 0);
+    const fundP = Number(c.fundingGainatOfficeProbability ?? 0) || 0;
+    const expectedFunding = fundGain * fundP;
+
+    const dormGain = Number(c.energyGainatDorm ?? c.dormRecoverRate ?? 0);
+    const officeLoss = Number(c.energyLossatOffice ?? 0);
+    const labLoss = Number(c.energyLossatLab ?? 0);
+    const lectureLoss = Number(c.energyLossatLecture ?? 0);
+    const barGain = Number(c.energyGainatBar ?? 0);
+    const barPGain = Number(c.energyGainatBarProbability ?? c.barProbability ?? 0) || 0;
+    const barLoss = Number(c.energyLossatBar ?? 0);
+    const barPLoss = Number(c.energyLossatBarProbability ?? 0) || 0;
+    const expectedBarEnergy = barGain * barPGain - barLoss * barPLoss;
+    const teachingRate = Number(c.respectGainatLecture);
+
+    const card = document.createElement("div");
+    card.className = "candidate-card";
+    card.innerHTML = `
+      <img src="${c.photo}" alt="${c.name}">
+      <h3>${c.name}</h3>
+      <p>Energy (start): ${c.energy}</p>
+      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
+      <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
+      <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
+      <p>Teaching: +${teachingRate ?? 0}</p>
+      <p><em>${c.special ?? ''}</em></p>
+    `;
+    card.onclick = () => selectPostdoc(c);
+    container.appendChild(card);
+  });
+
+  // add a skip button so the player can choose none
+  // remove existing skip button if present
+  let existingSkip = document.getElementById('recruit-skip-btn');
+  if (existingSkip) existingSkip.remove();
+  const skipWrap = document.createElement('div');
+  skipWrap.style.textAlign = 'center';
+  skipWrap.style.marginTop = '12px';
+  const skipBtn = document.createElement('button');
+  skipBtn.id = 'recruit-skip-btn';
+  skipBtn.textContent = 'None of these';
+  skipBtn.style.padding = '8px 12px';
+  skipBtn.style.fontSize = '16px';
+  skipBtn.style.cursor = 'pointer';
+  skipBtn.onclick = () => {
+    // close the recruit screen and log the skip
+    document.getElementById('recruit-screen').style.display = 'none';
+    addLog('Player skipped recruitment this round.');
+  };
+  skipWrap.appendChild(skipBtn);
+  container.appendChild(skipWrap);
+
+  recruitScreen.style.display = "block";
+}
+
+function selectPostdoc(character) {
+  // Add the selected candidate to the global characters pool
+  function normalizeCandidate(src) {
+    const o = Object.assign({}, src);
+    // canonicalize field names with sensible fallbacks
+    o.energy = Number(o.energy ?? 100);
+    o.energyGainatDorm = Number(o.energyGainatDorm ?? o.dormRecoverRate ?? 0);
+    o.energyLossatOffice = Number(o.energyLossatOffice ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLab = Number(o.energyLossatLab ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLecture = Number(o.energyLossatLecture ?? 1);
+    o.energyGainatBar = Number(o.energyGainatBar ?? 0);
+    o.energyGainatBarProbability = Number(o.energyGainatBarProbability ?? o.barProbability ?? 0);
+    o.energyLossatBar = Number(o.energyLossatBar ?? 0);
+    o.energyLossatBarProbability = Number(o.energyLossatBarProbability ?? 0);
+
+    o.fundingGainatOffice = Number(o.fundingGainatOffice ?? o.usingfundingRate ?? o.getfundingRate ?? 0);
+    o.fundingGainatOfficeProbability = Number(o.fundingGainatOfficeProbability ?? 0);
+    o.fundingLossatLab = Number(o.fundingLossatLab ?? 0);
+
+    o.progressGainatLab = Number(o.progressGainatLab ?? o.progressRate ?? 0);
+    o.progressGainatLabProbability = Number(o.progressGainatLabProbability ?? 0);
+    o.progressLossatLab = Number(o.progressLossatLab ?? 0);
+    o.progressLossatLabProbability = Number(o.progressLossatLabProbability ?? 0);
+
+    o.respectGainatLecture = Number(o.respectGainatLecture ?? 0);
+    o.respectGainatLectureProbability = Number(o.respectGainatLectureProbability ?? 0);
+    o.respectGainatBar = Number(o.respectGainatBar ?? 0);
+    o.respectGainatBarProbability = Number(o.respectGainatBarProbability ?? 0);
+    o.respectLossatBar = Number(o.respectLossatBar ?? 0);
+    o.respectLossatBarProbability = Number(o.respectLossatBarProbability ?? 0);
+
+    o.level = o.level ?? 1;
+    o.hired = !!o.hired;
+    o.location = null;
+    return o;
+  }
+
+  if (Array.isArray(characters)) {
+    const exists = characters.find(c => c && c.id === character.id);
+    if (!exists) {
+      const newChar = normalizeCandidate(character);
+      characters.push(newChar);
+    }
+  } else {
+    characters[character.id] = normalizeCandidate(character);
+  }
+
+  // Update the left-side PhD slot card (if present)
+  // Update the left-side Postdoc slot card (if present)
+  const postdocCard = document.getElementById('char-postdoc');
+  if (postdocCard) {
+    const avatar = postdocCard.querySelector('.character-avatar');
+    if (avatar) avatar.src = character.photo;
+    const label = postdocCard.querySelector('.character-label');
+    if (label) label.textContent = character.name;
+    const energyText = document.getElementById('energy-text-postdoc');
+    if (energyText) energyText.textContent = character.energy || 0;
+    // make the postdoc card reference this character id so lookups can map 'postdoc' -> actual id
+    postdocCard.dataset.character = character.id;
+    // also populate the global energy fallback so updateUI/getCharEnergy finds a value for 'postdoc'
+    if (typeof energy === 'object') energy.postdoc = Number(character.energy) || 0;
+  }
+
+  // Place a draggable card in the first available card-slot at the bottom
+  const slots = Array.from(document.querySelectorAll('.card-slot'));
+  let placed = false;
+  for (let s of slots) {
+    if (!s.querySelector('.card')) {
+      // clear empty placeholder text/class
+      s.classList.remove('empty');
+      s.textContent = '';
+
+      const cardImg = document.createElement('img');
+      cardImg.src = character.photo;
+      cardImg.className = 'card';
+      cardImg.draggable = true;
+      cardImg.dataset.character = character.id;
+      cardImg.alt = character.name + ' card';
+
+      // set the slot id so drag origin is tracked
+      s.dataset.slot = character.id;
+      s.appendChild(cardImg);
+
+      // attach dragstart handler for the newly created card
+      cardImg.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('character', e.target.dataset.character);
+        e.dataTransfer.setData('origin', e.target.parentElement.dataset.slot || 'building');
+      });
+
+      placed = true;
+      break;
+    }
+  }
+
+  if (!placed) {
+    addLog(`No empty card slot available to place ${character.name}'s card.`);
+  }
+
+  // Close the recruit UI and refresh UI
+  document.getElementById('recruit-screen').style.display = 'none';
+  if (typeof renderSidebar === 'function') renderSidebar();
+  if (typeof updateUI === 'function') updateUI();
+
+  addLog(`${character.name} joined the team.`);
+}
+
+function showcoPIChoices() {
+  const recruitScreen = document.getElementById("recruit-screen");
+  const container = document.getElementById("candidate-container");
+  container.innerHTML = "";
+
+  // choose 3 candidates based on current respect
+  function sampleRandom(arr, n) {
+    const out = [];
+    if (!Array.isArray(arr) || arr.length === 0) return out;
+    const copy = arr.slice();
+    // shuffle
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    for (let i = 0; i < Math.min(n, copy.length); i++) out.push(copy[i]);
+    // if not enough unique items, fill by random picks (allow duplicates)
+    while (out.length < n) {
+      out.push(arr[Math.floor(Math.random() * arr.length)]);
+    }
+    return out;
+  }
+
+  const level1 = coPICandidates.filter(p => Number(p.level) === 1);
+  const level2 = coPICandidates.filter(p => Number(p.level) === 2);
+  let choices = [];
+  if (respect >= 10 && respect < 20) {
+    // 2 from level1, 1 from level2
+    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
+  } else if (respect >= 30 && respect < 40) {
+    // 2 from level2, 1 from level1
+    choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
+  } else {
+    // fallback: pick any 3
+    choices = sampleRandom(level2, 3);
+  }
+
+  choices.forEach(c => {
+    // compute average expected values (per day) for display
+    const progGain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
+    const pGain = Number(c.progressGainatLabProbability ?? c.progressGainatLabProbability ?? 1) || 0;
+    const progLoss = Number(c.progressLossatLab ?? 0);
+    const pLoss = Number(c.progressLossatLabProbability ?? 0) || 0;
+    const expectedProgress = progGain * pGain - progLoss * pLoss;
+
+    const fundGain = Number(c.fundingGainatOffice ?? c.usingfundingRate ?? c.getfundingRate ?? 0);
+    const fundP = Number(c.fundingGainatOfficeProbability ?? 0) || 0;
+    const expectedFunding = fundGain * fundP;
+
+    const dormGain = Number(c.energyGainatDorm ?? c.dormRecoverRate ?? 0);
+    const officeLoss = Number(c.energyLossatOffice ?? 0);
+    const labLoss = Number(c.energyLossatLab ?? 0);
+    const lectureLoss = Number(c.energyLossatLecture ?? 0);
+    const barGain = Number(c.energyGainatBar ?? 0);
+    const barPGain = Number(c.energyGainatBarProbability ?? c.barProbability ?? 0) || 0;
+    const barLoss = Number(c.energyLossatBar ?? 0);
+    const barPLoss = Number(c.energyLossatBarProbability ?? 0) || 0;
+    const expectedBarEnergy = barGain * barPGain - barLoss * barPLoss;
+    const teachingRate = Number(c.respectGainatLecture);
+
+    const card = document.createElement("div");
+    card.className = "candidate-card";
+    card.innerHTML = `
+      <img src="${c.photo}" alt="${c.name}">
+      <h3>${c.name}</h3>
+      <p>Energy (start): ${c.energy}</p>
+      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
+      <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
+      <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
+      <p>Teaching: +${teachingRate ?? 0}</p>
+      <p><em>${c.special ?? ''}</em></p>
+    `;
+    card.onclick = () => selectcoPI(c);
+    container.appendChild(card);
+  });
+
+  // add a skip button so the player can choose none
+  // remove existing skip button if present
+  let existingSkip = document.getElementById('recruit-skip-btn');
+  if (existingSkip) existingSkip.remove();
+  const skipWrap = document.createElement('div');
+  skipWrap.style.textAlign = 'center';
+  skipWrap.style.marginTop = '12px';
+  const skipBtn = document.createElement('button');
+  skipBtn.id = 'recruit-skip-btn';
+  skipBtn.textContent = 'None of these';
+  skipBtn.style.padding = '8px 12px';
+  skipBtn.style.fontSize = '16px';
+  skipBtn.style.cursor = 'pointer';
+  skipBtn.onclick = () => {
+    // close the recruit screen and log the skip
+    document.getElementById('recruit-screen').style.display = 'none';
+    addLog('Player skipped recruitment this round.');
+  };
+  skipWrap.appendChild(skipBtn);
+  container.appendChild(skipWrap);
+
+  recruitScreen.style.display = "block";
+}
+
+function selectcoPI(character) {
+  // Add the selected candidate to the global characters pool
+  function normalizeCandidate(src) {
+    const o = Object.assign({}, src);
+    // canonicalize field names with sensible fallbacks
+    o.energy = Number(o.energy ?? 100);
+    o.energyGainatDorm = Number(o.energyGainatDorm ?? o.dormRecoverRate ?? 0);
+    o.energyLossatOffice = Number(o.energyLossatOffice ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLab = Number(o.energyLossatLab ?? o.usingEnergyRate ?? 1);
+    o.energyLossatLecture = Number(o.energyLossatLecture ?? 1);
+    o.energyGainatBar = Number(o.energyGainatBar ?? 0);
+    o.energyGainatBarProbability = Number(o.energyGainatBarProbability ?? o.barProbability ?? 0);
+    o.energyLossatBar = Number(o.energyLossatBar ?? 0);
+    o.energyLossatBarProbability = Number(o.energyLossatBarProbability ?? 0);
+
+    o.fundingGainatOffice = Number(o.fundingGainatOffice ?? o.usingfundingRate ?? o.getfundingRate ?? 0);
+    o.fundingGainatOfficeProbability = Number(o.fundingGainatOfficeProbability ?? 0);
+    o.fundingLossatLab = Number(o.fundingLossatLab ?? 0);
+
+    o.progressGainatLab = Number(o.progressGainatLab ?? o.progressRate ?? 0);
+    o.progressGainatLabProbability = Number(o.progressGainatLabProbability ?? 0);
+    o.progressLossatLab = Number(o.progressLossatLab ?? 0);
+    o.progressLossatLabProbability = Number(o.progressLossatLabProbability ?? 0);
+
+    o.respectGainatLecture = Number(o.respectGainatLecture ?? 0);
+    o.respectGainatLectureProbability = Number(o.respectGainatLectureProbability ?? 0);
+    o.respectGainatBar = Number(o.respectGainatBar ?? 0);
+    o.respectGainatBarProbability = Number(o.respectGainatBarProbability ?? 0);
+    o.respectLossatBar = Number(o.respectLossatBar ?? 0);
+    o.respectLossatBarProbability = Number(o.respectLossatBarProbability ?? 0);
+
+    o.level = o.level ?? 1;
+    o.hired = !!o.hired;
+    o.location = null;
+    return o;
+  }
+
+  if (Array.isArray(characters)) {
+    const exists = characters.find(c => c && c.id === character.id);
+    if (!exists) {
+      const newChar = normalizeCandidate(character);
+      characters.push(newChar);
+    }
+  } else {
+    characters[character.id] = normalizeCandidate(character);
+  }
+
+  // Update the left-side PhD slot card (if present)
+  // Update the left-side coPI slot card (if present)
+  const coPICard = document.getElementById('char-coPI');
+  if (coPICard) {
+    const avatar = coPICard.querySelector('.character-avatar');
+    if (avatar) avatar.src = character.photo;
+    const label = coPICard.querySelector('.character-label');
+    if (label) label.textContent = character.name;
+    const energyText = document.getElementById('energy-text-coPI');
+    if (energyText) energyText.textContent = character.energy || 0;
+    // make the coPI card reference this character id so lookups can map 'coPI' -> actual id
+    coPICard.dataset.character = character.id;
+    // also populate the global energy fallback so updateUI/getCharEnergy finds a value for 'coPI'
+    if (typeof energy === 'object') energy.coPI = Number(character.energy) || 0;
+  }
+
+  // Place a draggable card in the first available card-slot at the bottom
+  const slots = Array.from(document.querySelectorAll('.card-slot'));
+  let placed = false;
+  for (let s of slots) {
+    if (!s.querySelector('.card')) {
+      // clear empty placeholder text/class
+      s.classList.remove('empty');
+      s.textContent = '';
+
+      const cardImg = document.createElement('img');
+      cardImg.src = character.photo;
+      cardImg.className = 'card';
+      cardImg.draggable = true;
+      cardImg.dataset.character = character.id;
+      cardImg.alt = character.name + ' card';
+
+      // set the slot id so drag origin is tracked
+      s.dataset.slot = character.id;
+      s.appendChild(cardImg);
+
+      // attach dragstart handler for the newly created card
+      cardImg.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('character', e.target.dataset.character);
+        e.dataTransfer.setData('origin', e.target.parentElement.dataset.slot || 'building');
+      });
+
+      placed = true;
+      break;
+    }
+  }
+
+  if (!placed) {
+    addLog(`No empty card slot available to place ${character.name}'s card.`);
+  }
+
+  // Close the recruit UI and refresh UI
+  document.getElementById('recruit-screen').style.display = 'none';
+  if (typeof renderSidebar === 'function') renderSidebar();
+  if (typeof updateUI === 'function') updateUI();
+
+  addLog(`${character.name} joined the team.`);
+}
+
 function renderSidebar() {
   const teamDiv = document.getElementById("team");
   teamDiv.innerHTML = "";
@@ -401,5 +1046,11 @@ function startNextRound() {
 
   if (currentTurn === 2) {
     showPhdChoices();  // 🎯 在第2轮开始时弹出选择界面
+  }
+  else if (currentTurn === 5) {
+    showPostdocChoices();  // 🎯 在第5轮开始时弹出选择界面
+  }
+  else if (currentTurn === 8) {
+    showcoPIChoices();  // 🎯 在第8轮开始时弹出选择界面
   }
 }
