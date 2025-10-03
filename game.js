@@ -654,7 +654,7 @@ window.addEventListener("DOMContentLoaded", () => {
     "Good luck!"
   ];
   const initialDelay = 3000; // wait after the first welcome bubble 3000
-  const interval = 30; // time between sentences (ms) 3500
+  const interval = 3000; // time between sentences (ms) 3500
   introLines.forEach((line, i) => {
     setTimeout(() => {
       makeCharacterSpeak("sumit", line);
