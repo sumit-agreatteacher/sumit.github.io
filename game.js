@@ -325,8 +325,13 @@ function simulateDay() {
         const lossLab = (c.energyLossatLab || 1);
         c.energy = Math.max(0, (c.energy || 0) - lossLab);
         if (typeof c.fundingLossatLab === 'number') {
-          funding = Math.max(0, funding - c.fundingLossatLab);
-          //addLog(`${c.name} used funding -${c.fundingLossatLab}`);
+          const pFundLoss = (typeof c.fundingLossatLabProbability === 'number') ? c.fundingLossatLabProbability : 1;
+          const pf = Math.max(0, Math.min(1, pFundLoss));
+          if (Math.random() < pf) {
+            funding = Math.max(0, funding - c.fundingLossatLab);
+            addLog(`${c.name} used funding -${c.fundingLossatLab}`);
+          }
+        } used funding -${c.fundingLossatLab}`);
         }
         break;
       case 'lecture':
