@@ -406,7 +406,7 @@ const ENDINGS = {
 };
 function checkEnding() {
   if (progress >= 100) {
-    if (respect >= 100) {
+    if (respect >= 500) {
       endGame(ENDINGS.NOBEL_WINNER);
     } else {
     endGame(ENDINGS.TENURE_PASS);
@@ -659,7 +659,7 @@ window.addEventListener("DOMContentLoaded", () => {
     "Good luck!"
   ];
   const initialDelay = 3000; // wait after the first welcome bubble 3000
-  const interval = 3000; // time between sentences (ms) 3500
+  const interval = 3500; // time between sentences (ms) 3500
   introLines.forEach((line, i) => {
     setTimeout(() => {
       makeCharacterSpeak("sumit", line);
