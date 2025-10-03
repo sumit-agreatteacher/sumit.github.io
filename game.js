@@ -401,7 +401,7 @@ const ENDINGS = {
 };
 function checkEnding() {
   if (progress >= 100) {
-    if (respect >= 100) {
+    if (respect >= 500) {
       endGame(ENDINGS.NOBEL_WINNER);
     } else {
     endGame(ENDINGS.TENURE_PASS);
