@@ -5,7 +5,7 @@ const timeforTurn = 90; // 每轮 90 天
 let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
 // milliseconds per in-game day (configurable). Change this to speed up/slow down time.
-let dayMs = 100; // default 1000ms = 1s per day
+let dayMs = 10; // default 1000ms = 1s per day
 
 // 状态数值
 let funding = 10000;
@@ -220,6 +220,15 @@ function simulateDay() {
         // If there's no funding, the lab cannot produce progress
         if (funding <= 0) {
           addLog(`${c.name} couldn't make progress in the lab due to lack of funding`);
+          if(c.type === 'PhD') {
+            makeCharacterSpeak('phd', "No funding, hard to make progress!");
+          } else if(c.type === 'Postdoc') {
+            makeCharacterSpeak('postdoc', "No funding, hard to make progress!");
+          } else if(c.type === 'coPI') {
+            makeCharacterSpeak('coPI', "I am going to get some money!");
+          } else {
+            makeCharacterSpeak('sumit', "I am going to get some money!");
+          }
         } else {
           // Stochastic approach: single random draw decides gain / loss / no-change
           const gain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
@@ -236,7 +245,8 @@ function simulateDay() {
 
           const r = Math.random();
           if (r < pGain) {
-            progress += gain;
+            let effectiveProgress = getProgressEffect(c, gain);
+            progress += effectiveProgress;
             addLog(`${c.name} randomly worked in lab +${gain} progress`);
           } else if (r < pGain + pLoss) {
             const dec = Number(c.progressLossatLab ?? 0);
@@ -245,13 +255,14 @@ function simulateDay() {
           } else {
             addLog(`${c.name} had no progress change in lab today`);
           }
+          checkGameEndwithProgress();
         }
         // energy and funding effects
         const lossLab = (c.energyLossatLab || 1);
         c.energy = Math.max(0, (c.energy || 0) - lossLab);
         if (typeof c.fundingLossatLab === 'number') {
           funding = Math.max(0, funding - c.fundingLossatLab);
-          addLog(`${c.name} used funding -${c.fundingLossatLab}`);
+          //addLog(`${c.name} used funding -${c.fundingLossatLab}`);
         }
         break;
       case 'lecture':
@@ -313,10 +324,61 @@ function simulateDay() {
   addLog(`Day summary — Funding: ${funding}, Progress: ${progress}, Respect: ${respect}`);
   updateUI();
   drawBackground();
+
+}
+
+function checkGameEndwithProgress() {
+  if(progress>=100) {
+    endGame();
+  }
+}
+function endGame() {
+    // 停止模拟
+  timeLeft = 0; // 或 clearInterval(simulateInterval);
+
+  // 弹出蛋糕
+  const cake = document.createElement('img');
+  cake.src = 'game/src/happy_birthday.jpg'; // 你的蛋糕图片路径
+  cake.id = 'birthday-cake';
+  cake.style.position = 'absolute';
+  cake.style.top = '40%';
+  cake.style.left = '50%';
+  cake.style.transform = 'translate(-50%, -50%)';
+  cake.style.width = '800px';
+  cake.style.zIndex = '1000'; // 确保在最上层
+  document.body.appendChild(cake);
+
+  // 弹出祝贺信
+  const letter = document.createElement('div');
+  letter.id = 'congrats-letter';
+  letter.innerHTML = `
+    <h2>Congratulations on passing the Tenure review!</h2>
+    <h1>More important, happy birthday!🎉</h1>
+  `;
+  letter.style.position = 'absolute';
+  letter.style.top = '10%';
+  letter.style.left = '50%';
+  letter.style.transform = 'translate(-50%, -50%)';
+  letter.style.background = '#d75a49ff';
+  letter.style.padding = '20px';
+  letter.style.border = '3px solid #ff69b4';
+  letter.style.borderRadius = '10px';
+  letter.style.textAlign = 'center';
+  letter.style.fontSize = '20px';
+  letter.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+  letter.style.zIndex = '1001'; // 确保在蛋糕上层
+  document.body.appendChild(letter);
+
+  addLog('🎉 Game over：pass Tenure review and happy birthday!');
+}
+
+function getProgressEffect(character, baseProgress) {
+  if (character.energy >50) {return baseProgress;}
+  else {return baseProgress * character.energy /100;}
 }
 
 function makeCharacterSpeak(characterId, message) {
-  const bubble = document.getElementById("bubble-" + characterId);
+  const bubble = document.getElementById(`bubble-${characterId}`);
   if (!bubble) return;
 
   bubble.textContent = message;
@@ -345,7 +407,6 @@ function addLog(message) {
 // === 按钮 ===
 document.getElementById("startBtn").addEventListener("click", () => {
   if (!timer && currentTurn <= totalTurns) {
-    // start interval using the configurable dayMs
     timer = setInterval(simulateDay, dayMs);
   }
 });
@@ -353,7 +414,7 @@ window.addEventListener("DOMContentLoaded", () => {
   makeCharacterSpeak("sumit", "Welcome to the campus!");
   // short follow-up instructions from Sumit (in English) - speak sentence by sentence
   const introLines = [
-    "Drag the cards from the bottom into buildings",
+    "Drag the bottom cards into buildings.",
     "Different buildings have different effects.",
     "Dorm restores energy.",
     "Office for funding.",
@@ -361,13 +422,15 @@ window.addEventListener("DOMContentLoaded", () => {
     "Lecture brings respect.",
     "Bar can increase or decrease respect.",
     "You can drag anyone to anywhere at any time.",
+    "No energy = no work.",
     "Click Start to begin (1 second = 1 day).",
     "Each turn lasts 90 days.",
     "Before the end of turn 12, ",
-    "Your goal is to raise Progress to 100%!"
+    "Your goal is to raise Progress to 100%!",
+    "Good luck!"
   ];
-  const initialDelay = 3000; // wait after the first welcome bubble
-  const interval = 3500; // time between sentences (ms)
+  const initialDelay = 3000; // wait after the first welcome bubble 3000
+  const interval = 30; // time between sentences (ms) 3500
   introLines.forEach((line, i) => {
     setTimeout(() => {
       makeCharacterSpeak("sumit", line);
@@ -375,39 +438,6 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 //updateUI();
-document.getElementById("startBtn").addEventListener("click", () => {
-  if (!timer && currentTurn <= totalTurns) {
-    timer = setInterval(simulateDay, dayMs);
-  }
-});
-window.addEventListener("DOMContentLoaded", () => {
-  makeCharacterSpeak("sumit", "Welcome to the campus!");
-  // short follow-up instructions from Sumit (in English) - speak sentence by sentence
-  const introLines = [
-    "Drag the cards from the bottom into buildings",
-    "Different buildings have different effects.",
-    "Dorm restores energy.",
-    "Office for funding.",
-    "Lab increases progress but using funding.",
-    "Lecture brings respect.",
-    "Bar can increase or decrease respect.",
-    "You can drag anyone to anywhere at any time.",
-    "Click Start to begin (1 second = 1 day).",
-    "Each turn lasts 90 days.",
-    "Before the end of turn 12, ",
-    "Your goal is to raise Progress to 100%!"
-  ];
-  const initialDelay = 3000; // wait after the first welcome bubble
-  const interval = 3500; // time between sentences (ms)
-  introLines.forEach((line, i) => {
-    setTimeout(() => {
-      makeCharacterSpeak("sumit", line);
-    }, initialDelay + i * interval);
-  });
-});
-//updateUI();
-
-
 function showPhdChoices() {
   const recruitScreen = document.getElementById("recruit-screen");
   const container = document.getElementById("candidate-container");
@@ -436,10 +466,12 @@ function showPhdChoices() {
   let choices = [];
   if (respect >= 0 && respect < 10) {
     // 2 from level1, 1 from level2
-    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
+    choices = sampleRandom(level1, 3);
   } else if (respect >= 10 && respect < 20) {
     // 2 from level2, 1 from level1
-    choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
+    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
+  } else if (respect >= 20 && respect < 30) {
+    choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
   } else {
     // fallback: pick any 3
     choices = sampleRandom(level2, 3);
@@ -640,7 +672,10 @@ function showPostdocChoices() {
   const level1 = postdocCandidates.filter(p => Number(p.level) === 1);
   const level2 = postdocCandidates.filter(p => Number(p.level) === 2);
   let choices = [];
-  if (respect >= 10 && respect < 20) {
+  if (respect >= 0 && respect < 10) {
+    // 2 from level1, 1 from level2
+    choices = sampleRandom(level1, 3);
+  } else if (respect >= 10 && respect < 20) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
   } else if (respect >= 30 && respect < 40) {
@@ -847,7 +882,9 @@ function showcoPIChoices() {
   const level1 = coPICandidates.filter(p => Number(p.level) === 1);
   const level2 = coPICandidates.filter(p => Number(p.level) === 2);
   let choices = [];
-  if (respect >= 10 && respect < 20) {
+  if (respect >= 0 && respect < 10) {
+    choices = sampleRandom(level1, 3);
+  } else if (respect >= 10 && respect < 20) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
   } else if (respect >= 30 && respect < 40) {
