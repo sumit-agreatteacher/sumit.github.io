@@ -9,21 +9,30 @@ let dayMs = 10; // default 1000ms = 1s per day
 
 // 状态数值
 let funding = 10000;
-let progress = 0;
-let respect = 0;
+let papers = 0;
+let skill = 0;
 let energy = {sumit: 100, phd: 0, postdoc: 0, coPI: 0};
+// Added new lab-wide properties
+let machines = 0;
+let happiness = 0;
+let discipline = 0;
+
 
 let placement = {}; // 记录人物位置
 // === 画布 & 背景 ===
 
 // === UI更新 ===
 function updateUI() {
+  if (document.getElementById("machines")) document.getElementById("machines").textContent = machines;
+  if (document.getElementById("happiness")) document.getElementById("happiness").textContent = happiness;
+  if (document.getElementById("discipline")) document.getElementById("discipline").textContent = discipline;
+
   document.getElementById("currentTurn").textContent = currentTurn;
   document.getElementById("totalTurns").textContent = totalTurns;
   document.getElementById("time").textContent = timeLeft;
   document.getElementById("funding").textContent = funding;
-  document.getElementById("progress").textContent = progress;
-  document.getElementById("respect").textContent = respect;
+  document.getElementById("papers").textContent = papers;
+  document.getElementById("skill").textContent = skill;
 
   // Update energy bars (width + color) for characters. Use multiple fallbacks
   function getCharEnergy(id) {
@@ -217,13 +226,13 @@ function simulateDay() {
         c.energy = Math.max(0, (c.energy || 0) - lossOff);
         break;
       case 'lab':
-        // If there's no funding, the lab cannot produce progress
+        // If there's no funding, the lab cannot produce papers
         if (funding <= 0) {
-          addLog(`${c.name} couldn't make progress in the lab due to lack of funding`);
+          addLog(`${c.name} couldn't make papers in the lab due to lack of funding`);
           if(c.type === 'PhD') {
-            makeCharacterSpeak('phd', "No funding, hard to make progress!");
+            makeCharacterSpeak('phd', "No funding, hard to make papers!");
           } else if(c.type === 'Postdoc') {
-            makeCharacterSpeak('postdoc', "No funding, hard to make progress!");
+            makeCharacterSpeak('postdoc', "No funding, hard to make papers!");
           } else if(c.type === 'coPI') {
             makeCharacterSpeak('coPI', "I am going to get some money!");
           } else {
@@ -245,15 +254,15 @@ function simulateDay() {
 
           const r = Math.random();
           if (r < pGain) {
-            let effectiveProgress = getProgressEffect(c, gain);
-            progress += effectiveProgress;
-            addLog(`${c.name} randomly worked in lab +${gain} progress`);
+            let effectivePapers = getPapersEffect(c, gain);
+            papers += effectivePapers;
+            addLog(`${c.name} randomly worked in lab +${gain} papers`);
           } else if (r < pGain + pLoss) {
             const dec = Number(c.progressLossatLab ?? 0);
-            progress = Math.max(0, progress - dec);
-            addLog(`${c.name} randomly had a setback in lab -${dec} progress`);
+            papers = Math.max(0, papers - dec);
+            addLog(`${c.name} randomly had a setback in lab -${dec} papers`);
           } else {
-            addLog(`${c.name} had no progress change in lab today`);
+            addLog(`${c.name} had no papers change in lab today`);
           }
           checkGameEndwithProgress();
         }
@@ -268,13 +277,13 @@ function simulateDay() {
       case 'lecture':
         if (chance(c.respectGainatLectureProbability || 1)) {
           const incR = (c.respectGainatLecture || 1);
-          respect += incR;
-          addLog(`${c.name} gave a lecture +${incR} respect`);
+          skill += incR;
+          addLog(`${c.name} gave a lecture +${incR} skill`);
         }
         c.energy = Math.max(0, (c.energy || 0) - (c.energyLossatLecture || 1));
         break;
       case 'bar':
-        // bar outcomes: mostly small energy/respect gain, small chance of big loss
+        // bar outcomes: mostly small energy/skill gain, small chance of big loss
         if (chance(c.energyGainatBarProbability)) {
           const eg = (c.energyGainatBar || 1);
           c.energy = Math.min(100, (c.energy || 0) + eg);
@@ -286,10 +295,10 @@ function simulateDay() {
         }
         if (chance(c.respectGainatBarProbability)) {
           const rg = (c.respectGainatBar || 1);
-          respect += rg;
+          skill += rg;
         } else if (chance(c.respectLossatBarProbability)) {
           const rl = (c.respectLossatBar || 0.1);
-          respect = Math.max(0, respect - rl);
+          skill = Math.max(0, skill - rl);
         }
         break;
       default:
@@ -299,8 +308,8 @@ function simulateDay() {
 
     // keep global numbers within reasonable bounds
     funding = Math.max(0, Math.round(funding * 100) / 100);
-    progress = Math.max(0, Math.round(progress * 100) / 100);
-    respect = Math.max(0, Math.round(respect * 100) / 100);
+    papers = Math.max(0, Math.round(papers * 100) / 100);
+    skill = Math.max(0, Math.round(skill * 100) / 100);
     c.energy = Math.max(0, Math.min(100, Math.round((c.energy || 0) * 100) / 100));
   }
 
@@ -321,14 +330,14 @@ function simulateDay() {
     }
   }
   // write a daily summary so changes are visible in the log
-  addLog(`Day summary — Funding: ${funding}, Progress: ${progress}, Respect: ${respect}`);
+  addLog(`Day summary — Funding: ${funding}, Papers: ${papers}, Skill: ${skill}, Machines: ${machines}, Happiness: ${happiness}, Discipline: ${discipline}`);
   updateUI();
   drawBackground();
 
 }
 
 function checkGameEndwithProgress() {
-  if(progress>=100) {
+  if(papers>=100) {
     endGame();
   }
 }
@@ -372,9 +381,9 @@ function endGame() {
   addLog('🎉 Game over：pass Tenure review and happy birthday!');
 }
 
-function getProgressEffect(character, baseProgress) {
-  if (character.energy >50) {return baseProgress;}
-  else {return baseProgress * character.energy /100;}
+function getPapersEffect(character, basePapers) {
+  if (character.energy >50) {return basePapers;}
+  else {return basePapers * character.energy /100;}
 }
 
 function makeCharacterSpeak(characterId, message) {
@@ -418,15 +427,15 @@ window.addEventListener("DOMContentLoaded", () => {
     "Different buildings have different effects.",
     "Dorm restores energy.",
     "Office for funding.",
-    "Lab increases progress but using funding.",
-    "Lecture brings respect.",
-    "Bar can increase or decrease respect.",
+    "Lab increases papers but using funding.",
+    "Lecture brings skill.",
+    "Bar can increase or decrease skill.",
     "You can drag anyone to anywhere at any time.",
     "No energy = no work.",
     "Click Start to begin (1 second = 1 day).",
     "Each turn lasts 90 days.",
     "Before the end of turn 12, ",
-    "Your goal is to raise Progress to 100%!",
+    "Your goal is to raise Papers to 100%!",
     "Good luck!"
   ];
   const initialDelay = 3000; // wait after the first welcome bubble 3000
@@ -443,7 +452,7 @@ function showPhdChoices() {
   const container = document.getElementById("candidate-container");
   container.innerHTML = "";
 
-  // choose 3 candidates based on current respect
+  // choose 3 candidates based on current skill
   function sampleRandom(arr, n) {
     const out = [];
     if (!Array.isArray(arr) || arr.length === 0) return out;
@@ -464,13 +473,13 @@ function showPhdChoices() {
   const level1 = phdCandidates.filter(p => Number(p.level) === 1);
   const level2 = phdCandidates.filter(p => Number(p.level) === 2);
   let choices = [];
-  if (respect >= 0 && respect < 10) {
+  if (skill >= 0 && skill < 10) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 3);
-  } else if (respect >= 10 && respect < 20) {
+  } else if (skill >= 10 && skill < 20) {
     // 2 from level2, 1 from level1
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
-  } else if (respect >= 20 && respect < 30) {
+  } else if (skill >= 20 && skill < 30) {
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
   } else {
     // fallback: pick any 3
@@ -506,7 +515,7 @@ function showPhdChoices() {
       <img src="${c.photo}" alt="${c.name}">
       <h3>${c.name}</h3>
       <p>Energy (start): ${c.energy}</p>
-      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg papers/day (lab): ${expectedProgress.toFixed(2)}</p>
       <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
       <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
       <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
@@ -651,7 +660,7 @@ function showPostdocChoices() {
   const container = document.getElementById("candidate-container");
   container.innerHTML = "";
 
-  // choose 3 candidates based on current respect
+  // choose 3 candidates based on current skill
   function sampleRandom(arr, n) {
     const out = [];
     if (!Array.isArray(arr) || arr.length === 0) return out;
@@ -672,13 +681,13 @@ function showPostdocChoices() {
   const level1 = postdocCandidates.filter(p => Number(p.level) === 1);
   const level2 = postdocCandidates.filter(p => Number(p.level) === 2);
   let choices = [];
-  if (respect >= 0 && respect < 10) {
+  if (skill >= 0 && skill < 10) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 3);
-  } else if (respect >= 10 && respect < 20) {
+  } else if (skill >= 10 && skill < 20) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
-  } else if (respect >= 30 && respect < 40) {
+  } else if (skill >= 30 && skill < 40) {
     // 2 from level2, 1 from level1
     choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
   } else {
@@ -715,7 +724,7 @@ function showPostdocChoices() {
       <img src="${c.photo}" alt="${c.name}">
       <h3>${c.name}</h3>
       <p>Energy (start): ${c.energy}</p>
-      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg papers/day (lab): ${expectedProgress.toFixed(2)}</p>
       <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
       <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
       <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
@@ -861,7 +870,7 @@ function showcoPIChoices() {
   const container = document.getElementById("candidate-container");
   container.innerHTML = "";
 
-  // choose 3 candidates based on current respect
+  // choose 3 candidates based on current skill
   function sampleRandom(arr, n) {
     const out = [];
     if (!Array.isArray(arr) || arr.length === 0) return out;
@@ -882,12 +891,12 @@ function showcoPIChoices() {
   const level1 = coPICandidates.filter(p => Number(p.level) === 1);
   const level2 = coPICandidates.filter(p => Number(p.level) === 2);
   let choices = [];
-  if (respect >= 0 && respect < 10) {
+  if (skill >= 0 && skill < 10) {
     choices = sampleRandom(level1, 3);
-  } else if (respect >= 10 && respect < 20) {
+  } else if (skill >= 10 && skill < 20) {
     // 2 from level1, 1 from level2
     choices = sampleRandom(level1, 2).concat(sampleRandom(level2, 1));
-  } else if (respect >= 30 && respect < 40) {
+  } else if (skill >= 30 && skill < 40) {
     // 2 from level2, 1 from level1
     choices = sampleRandom(level2, 2).concat(sampleRandom(level1, 1));
   } else {
@@ -924,7 +933,7 @@ function showcoPIChoices() {
       <img src="${c.photo}" alt="${c.name}">
       <h3>${c.name}</h3>
       <p>Energy (start): ${c.energy}</p>
-      <p>Avg progress/day (lab): ${expectedProgress.toFixed(2)}</p>
+      <p>Avg papers/day (lab): ${expectedProgress.toFixed(2)}</p>
       <p>Avg funding/day (office): ${expectedFunding.toFixed(2)}</p>
       <p>Energy Δ — Dorm: +${dormGain}, Lab: -${labLoss}, Office: -${officeLoss}</p>
       <p>Avg bar energy/day: ${expectedBarEnergy.toFixed(2)} (chance ${(barPGain*100).toFixed(0)}%)</p>
