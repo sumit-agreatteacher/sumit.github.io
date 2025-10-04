@@ -390,6 +390,12 @@ function fireCharacter(characterId) {
 
   const confirmFire = confirm("Are you sure you want to fire this character?");
   if (!confirmFire) return;
+  
+  ['phdCandidates','postdocCandidates','coPICandidates'].forEach(poolName => {
+    const pool = window[poolName] || [];
+    const obj = pool.find(x => x && x.id === characterId);
+    if (obj) obj.hired = false;
+  });
 
   // 移除全局 characters 数据
   if (Array.isArray(characters)) {
@@ -1449,7 +1455,42 @@ function selectMember(character) {
   }
 
   const c = normalizeCandidate(character);
+  // --- mark as hired on the canonical object & remove from pools ---
+  {
+    const id = c.id;
 
+    // mark hired in the master list (characters)
+    try {
+      if (Array.isArray(window.characters)) {
+        const ref = window.characters.find(x => x && x.id === id);
+        if (ref) ref.hired = true;
+      } else if (window.characters && window.characters[id]) {
+        window.characters[id].hired = true;
+      }
+    } catch (e) {}
+
+    // also mark this object (usually same ref as pool)
+    c.hired = true;
+
+    // prune from candidate pools so they won't be offered again
+    ['phdCandidates', 'postdocCandidates', 'coPICandidates'].forEach(listName => {
+      if (Array.isArray(window[listName])) {
+        window[listName] = window[listName].filter(x => x && x.id !== id);
+      }
+    });
+  }
+
+  ['phdCandidates','postdocCandidates','coPICandidates'].forEach(poolName => {
+    const pool = window[poolName] || [];
+    const obj = pool.find(x => x && x.id === character.id);
+    if (obj) obj.hired = true;
+  });
+  if (Array.isArray(window.characters)) {
+    const obj = window.characters.find(x => x && x.id === character.id);
+    if (obj) obj.hired = true;
+  } else if (window.characters && window.characters[character.id]) {
+    window.characters[character.id].hired = true;
+  }
   // ---- place one bottom card (existing logic kept; just not duplicated) ----
   const slots = Array.from(document.querySelectorAll('.card-slot'));
   let placed = false;
@@ -1586,6 +1627,7 @@ function getUnhiredCandidatesAcrossPools() {
     if (seen.has(c.id)) continue;
     seen.add(c.id);
     if (c.hired) continue;
+    if (hasCardInDOM(c.id)) continue; // extra guard: already on team
     out.push(c);
   }
   return out;
