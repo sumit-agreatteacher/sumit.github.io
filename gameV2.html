@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tenure Track Game — Demo V2</title>
+  <link rel="stylesheet" href="gameV2.css">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+</head>
+
+<body>
+<div id="rules">Target: achieve 100% progress toward tenure by bringing the characters into the different buildings to work.</div>
+
+<div id="characters">
+<div class="char_top">
+    <div class="character-card" id="char-member1" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 1">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member1"></div>
+      <div class="character-energy">
+        <div id="energy-member1" class="energy-bar"></div>
+        <span id="energy-text-member1" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member1" class="happiness-bar"></div>
+        <span id="happiness-text-member1" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+<div class="char_top">
+    <div class="character-card" id="char-member2" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 2">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member2"></div>
+      <div class="character-energy">
+        <div id="energy-member2" class="energy-bar"></div>
+        <span id="energy-text-member2" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member2" class="happiness-bar"></div>
+        <span id="happiness-text-member2" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+<div class="char_top">
+    <div class="character-card" id="char-member3" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 3">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member3"></div>
+      <div class="character-energy">
+        <div id="energy-member3" class="energy-bar"></div>
+        <span id="energy-text-member3" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member3" class="happiness-bar"></div>
+        <span id="happiness-text-member3" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+<div class="char_top">
+    <div class="character-card" id="char-member4" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 4">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member4"></div>
+      <div class="character-energy">
+        <div id="energy-member4" class="energy-bar"></div>
+        <span id="energy-text-member4" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member4" class="happiness-bar"></div>
+        <span id="happiness-text-member4" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+<div class="char_top">
+    <div class="character-card" id="char-member5" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 5">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member5"></div>
+      <div class="character-energy">
+        <div id="energy-member5" class="energy-bar"></div>
+        <span id="energy-text-member5" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member5" class="happiness-bar"></div>
+        <span id="happiness-text-member5" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+<div class="char_top">
+    <div class="character-card" id="char-member6" data-character="">
+      <div class="character-avatar-wrapper">
+        <img src="game/src/wanted2.png" class="character-avatar" alt="Member 6">
+      </div>
+      <div class="character-label"></div>
+      <div class="speech-bubble" id="bubble-member6"></div>
+      <div class="character-energy">
+        <div id="energy-member6" class="energy-bar"></div>
+        <span id="energy-text-member6" class="energy-text"></span>
+      </div>
+      <div class="character-happiness">
+        <div id="happiness-member6" class="happiness-bar"></div>
+        <span id="happiness-text-member6" class="happiness-text"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- 右上角：状态栏 -->
+  <div id="status">
+    <div class="stat turn">Turn: <span id="currentTurn">1</span> / <span id="totalTurns">12</span></div>
+    <div class="stat time">Time: <span id="time">90</span> days</div>
+    <div class="stat funding">Funding: <span id="funding">100</span></div>
+    <div class="stat progress">Papers: <span id="papers">0</span></div>
+    <div class="stat respect">Skills: <span id="skills">0</span></div>
+    <div class="stat platforms">Platforms: <span id="platforms">0</span></div>
+    <div class="stat discipline">Discipline: <span id="discipline">0</span></div>
+    <div class="stat happiness">Happiness: <span id="happiness">0</span></div>
+
+  </div>
+
+  <!-- 中间地图（放建筑） -->
+ <div id="mapCampus">
+  <canvas id="world"></canvas>
+  <!-- 使用真实图片元素以便相对定位 -->
+  <img id="campus-img" src="game/src/Campus/Campus.jpg" alt="Campus" />
+
+  <!-- 定义建筑区域（使用百分比定位，和带标签的子元素） -->
+  <div class="building" id="lab" data-building="lab" style="top:23%; left:45%; width:14%; height: 25%;">
+    <span class="building-label">Lab</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="dorm" data-building="dorm" style="top:40%; left:12%; width:12%; height:17%;">
+    <span class="building-label">Dorm</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="bar" data-building="bar" style="top:55%; left:30%; width:13%; height:20%;">
+    <span class="building-label">Bar</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="lecture" data-building="lecture" style="top:30%; left:72%; width:14%; height:22%;">
+    <span class="building-label">Lecture</span>
+    <div class="occupants"></div>
+  </div>
+  <div class="building" id="office" data-building="office" style="top:10%; left:27%; width:15%; height:20%;">
+    <span class="building-label">Office</span>
+    <div class="occupants"></div>
+  </div>
+ </div>
+
+  <!-- 日志 / 通知 -->
+  <div id="log"></div>
+
+<!-- 下方卡牌区 -->
+<div id="cardArea">
+  <div class="card-slot" data-slot="sumit">
+    <img src="game/src/photo_raw/Sumit.png" class="card" draggable="true" data-character="sumit" alt="sumit card">
+  </div>
+  <div class="card-slot empty">Empty</div>
+  <div class="card-slot empty">Empty</div>
+  <div class="card-slot empty">Empty</div>
+</div>
+
+  <!-- 右下角按钮 -->
+  <div id="controls">
+    <button id="startBtn">▶ Start</button>
+  </div>
+
+  <!-- 结束/Reveal 覆盖层 -->
+  <div id="overlay" class="hidden">
+    <div id="overlay-content">
+      <h1 id="overlay-title"></h1>
+      <p id="overlay-msg"></p>
+      <button id="overlay-close">Close</button>
+    </div>
+  </div>
+
+  <!-- 招募界面 -->
+<div id="recruit-screen" style="display:none;">
+  <h2>There are some PhD candidates interested in your project! Choose one:</h2>
+  <div id="candidate-container"></div>
+</div>
+
+  <script src="charactersV2.js"></script>
+  <script src="gameV2.js"></script>
+</body>
+</html>

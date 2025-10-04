@@ -57,14 +57,18 @@
 
   <script src="stars.js"></script>
   <script>
+    
     function startGame() {
-      const name = document.getElementById('nameInput').value.trim();
-      if (name.toLowerCase() === "sumit") {
+      const name = document.getElementById('nameInput').value.trim().toLowerCase();
+      if (name === "sumit") {
         window.location.href = "game.html";
+      } else if (name === "sumitv2") {
+        window.location.href = "gameV2.html";
       } else {
         alert("Access denied! Only the birthday professor may enter 🚀");
       }
     }
+
   </script>
 </body>
 </html>
