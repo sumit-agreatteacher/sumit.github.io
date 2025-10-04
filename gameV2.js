@@ -34,11 +34,14 @@ window.TARGETSKILLS   = typeof window.TARGETSKILLS   === 'number' ? window.TARGE
 let MAXFUNDING=1000;
 let MAXPROGRESS=100;
 let MAXSKILLS=1000;
+let MAXDISC=100;
+let MAXPLATFORMS=200;
 
 // 状态数值
 let funding = 100;
 let progress = 0;
 let skills = 0;
+let platforms = 0;
 let energy = Object.fromEntries(getTeamIds().map(id => [id, 100]));
 let charHappiness = Object.fromEntries(getTeamIds().map(id => [id, 50]));
 
@@ -446,6 +449,32 @@ function unbindCharacterFromSidebar(characterId) {
   });
 }
 
+function stochasticGain(gain, gainprob, loss, lossprob) {
+  // Stochastic approach: single random draw decides gain / loss / no-change
+  let Gain = Number(gain ?? 0);
+  let GainProb = Number(gainprob ?? 0);
+  let Loss = Number(loss ?? 0);
+  let LossProb = Number(lossprob ?? 0);
+  // clamp probabilities to [0,1]
+  GainProb = Math.max(0, Math.min(1, GainProb));
+  LossProb = Math.max(0, Math.min(1, LossProb));
+  let totprob=GainProb + LossProb
+  // ensure combined threshold doesn't exceed 1
+  if (totprob > 1) {
+    // normalize loss so gain has priority
+    LossProb = LossProb/totprob;
+    GainProb = GainProb/totprob;
+  }
+  const r = Math.random();
+  let inc = 0;
+  if (r < GainProb) {
+    inc = Gain;
+  } else if (r < GainProb + LossProb) {
+    inc = -Loss;
+  }
+  return inc;
+}
+
 function logAction(msg) {
   const log = document.getElementById("log");
   const entry = document.createElement("div");
@@ -488,11 +517,12 @@ function simulateDay() {
     const loc = c.location;
     // helper random check
     const chance = p => Math.random() < (p || 0);
+    let dgain=0;
 
     switch (loc) {
       case 'dorm':
         // restore energy
-        const gainDorm = (c.energyGainatDorm || c.dormRecoverRate || 2);
+        const gainDorm = (c.energyGainatDorm || 2);
         c.energy = Math.min(100, (c.energy || 0) + gainDorm);
         addLog(`${c.name} rested in dorm +${gainDorm} energy`);
         break;
@@ -505,6 +535,13 @@ function simulateDay() {
         }
         const lossOff = (c.energyLossatOffice || 1);
         c.energy = Math.max(0, (c.energy || 0) - lossOff);
+        dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
+        disc += dgain;
+        if (dgain > 0) {
+          addLog(`${c.name} supervised in office +${dgain} discipline`);
+        } else if (dgain < 0) {
+          addLog(`${c.name} conspired in office -${dgain} discipline`);
+        }
         break;
       case 'lab':
         // If there's no funding, the lab cannot produce progress
@@ -520,30 +557,25 @@ function simulateDay() {
             makeCharacterSpeak('sumit', "I am going to get some money!");
           }
         } else {
-          // Stochastic approach: single random draw decides gain / loss / no-change
-          const gain = Number(c.progressGainatLab ?? c.progressRate ?? 0);
-          let pGain = Number(c.progressGainatLabProbability ?? 1);
-          let pLoss = Number(c.progressLossatLabProbability ?? 0);
-          // clamp probabilities to [0,1]
-          pGain = Math.max(0, Math.min(1, pGain));
-          pLoss = Math.max(0, Math.min(1, pLoss));
-          // ensure combined threshold doesn't exceed 1
-          if (pGain + pLoss > 1) {
-            // normalize loss so gain has priority
-            pLoss = Math.max(0, 1 - pGain);
+          if (platforms > 100) {
+            // Stochastic approach: single random draw decides gain / loss / no-change
+            let pgain=stochasticGain(Number(c.progressGainatLab ?? 0), Number(c.progressGainatLabProbability ?? 0), Number(c.progressLossatLab ?? 0), Number(c.progressLossatLabProbability ?? 0))
+            progress += pgain;
+            if (pgain > 0) {
+              addLog(`${c.name} succeeded in lab +${pgain} papers`);
+            } else if (dgain < 0) {
+              addLog(`${c.name} had a setback in lab -${pgain} papers`);
+            }
           }
-
-          const r = Math.random();
-          if (r < pGain) {
-            let effectivePapers = getProgressEffect(c, gain);
-            progress += effectivePapers;
-            addLog(`${c.name} randomly worked in lab +${gain} papers`);
-          } else if (r < pGain + pLoss) {
-            const dec = Number(c.papersLossatLab ?? 0);
-            progress = Math.max(0, papers - dec);
-            addLog(`${c.name} randomly had a setback in lab -${dec} papers`);
-          } else {
-            addLog(`${c.name} had no papers change in lab today`);
+          else {
+            // Stochastic approach: single random draw decides gain / loss / no-change
+            let platgain=stochasticGain(Number(c.platformGainatLab ?? 0), Number(c.platformGainatLabProbability ?? 0), Number(c.platformLossatLab ?? 0), Number(c.platformLossatLabProbability ?? 0))
+            platforms += platgain;
+            if (platgain > 0) {
+              addLog(`${c.name} succeeded in lab +${platgain} platforms`);
+            } else if (dgain < 0) {
+              addLog(`${c.name} had a setback in lab -${platgain} platforms`);
+            }
           }
         }
         // energy and funding effects
@@ -553,6 +585,13 @@ function simulateDay() {
           funding = Math.max(0, funding - c.fundingLossatLab);
           //addLog(`${c.name} used funding -${c.fundingLossatLab}`);
         }
+        dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
+        disc += dgain;
+        if (dgain > 0) {
+          addLog(`${c.name} supervised in lab +${dgain} discipline`);
+        } else if (dgain < 0) {
+          addLog(`${c.name} conspired in lab -${dgain} discipline`);
+        }
         break;
       case 'lecture':
         if (chance(c.skillsGainatLectureProbability || 1)) {
@@ -561,6 +600,13 @@ function simulateDay() {
           addLog(`${c.name} gave a lecture +${incR} skills`);
         }
         c.energy = Math.max(0, (c.energy || 0) - (c.energyLossatLecture || 1));
+        dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
+        disc += dgain;
+        if (dgain > 0) {
+          addLog(`${c.name} supervised in office +${dgain} discipline`);
+        } else if (dgain < 0) {
+          addLog(`${c.name} conspired in office -${dgain} discipline`);
+        }
         break;
       case 'bar':
         // bar outcomes: mostly small energy/skills gain, small chance of big loss
@@ -580,6 +626,11 @@ function simulateDay() {
           const rl = (c.skillsLossatBar || 0.1);
           skills = Math.max(0, skills - rl);
         }
+        dgain=stochasticGain(0, 0, Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
+        disc += dgain;
+        if (dgain < 0) {
+          addLog(`${c.name} conspired in bar -${dgain} discipline`);
+        }
         break;
       default:
         // unknown location: do nothing
@@ -592,33 +643,36 @@ function simulateDay() {
     let dh = 0;
     switch (loc) {
       case 'dorm':
-        dh += 0.4; // rest makes people happier
+        dh += c.happinessGainatDorm; // rest makes people happier
         break;
       case 'office':
-        dh -= 0.2; // grant writing is draining
+        dh += c.happinessGainatOffice; // grant writing is draining
         break;
       case 'lab':
         // happy when productive; if energy is low, it's frustrating
-        if ((c.energy || 0) > 60) dh += 0.3;
-        if ((c.energy || 0) < 20) dh -= 0.5;
+        if ((c.energy || 0) > 60) dh += c.happinessGainatLab;
+        if ((c.energy || 0) < 20) dh += (c.happinessGainatLab-1);
         break;
       case 'lecture':
-        dh += 0.2; // public recognition feels good
+        dh += c.happinessGainatLecture; // public recognition feels good
         break;
       case 'bar':
         // mirror energy outcome roughly
-        if ((c.energy || 0) > 0 && (c.energy || 0) < 100) dh += 0.1;
+        dh += happinessGainatBar;
+        //if ((c.energy || 0) > 0 && (c.energy || 0) < 100) dh += 0.1;
         break;
     }
     // Additional penalties
-    if ((c.energy || 0) <= 0) dh -= 0.6;
+    if ((c.energy || 0) <= 0) dh -= 0.2;
     // Apply and clamp
     c.happiness = Math.max(0, Math.min(100, Math.round((c.happiness + dh) * 100) / 100));
 
     // keep global numbers within reasonable bounds
-    funding = Math.max(0, Math.round(funding * MAXFUNDING) / MAXFUNDING);
-    progress = Math.max(0, Math.round(progress * MAXPROGRESS) / MAXPROGRESS);
-    skills = Math.max(0, Math.round(skills * MAXSKILLS) / MAXSKILLS);
+    funding = Math.max(0, Math.min(MAXFUNDING, Math.round(funding * MAXFUNDING) / MAXFUNDING));
+    progress = Math.max(0, Math.min(MAXPROGRESS, Math.round(progress * MAXPROGRESS) / MAXPROGRESS));
+    disc = Math.max(0, Math.min(MAXDISC, Math.round(disc * MAXDISC) / MAXDISC)); // fixed variable
+    platforms = Math.max(0, Math.min(MAXPLATFORMS, Math.round(platforms * MAXPLATFORMS) / MAXPLATFORMS)); // fixed variable
+    skills = Math.max(0, Math.min(MAXSKILLS, Math.round(skills * MAXSKILLS) / MAXSKILLS));
     c.energy = Math.max(0, Math.min(100, Math.round((c.energy || 0) * 100) / 100));
   }
 
@@ -630,100 +684,167 @@ function simulateDay() {
 
 // Resolve voluntary quits (by happiness) and attempted firings (by discipline)
 // Must run BEFORE recruitment screen shows.
+// function resolveTurnDepartures() {
+//   const disc = Math.max(0, Math.min(100, Number(typeof discipline !== 'undefined' ? discipline : 0)));
+//   const ids = getTeamIds();
+
+//   // Handle individual quit/fire first
+//   ids.forEach(id => {
+//     const nullDays = Number(daysInNull[id] || 0);
+//     const satNullAllTurn = nullDays >= timeforTurn || wasEverOnBoard[id] === false;
+//     let fired = false, quit = false;
+
+//     // Happiness lookup
+//     let h = 50;
+//     try {
+//       if (Array.isArray(characters)) {
+//         let c = characters.find(x => x && (x.id === id || x.name === id));
+//         if (c && typeof c.happiness === 'number') h = c.happiness;
+//       } else if (characters && characters[id] && typeof characters[id].happiness === 'number') {
+//         h = characters[id].happiness;
+//       } else if (typeof charHappiness === 'object' && typeof charHappiness[id] === 'number') {
+//         h = charHappiness[id];
+//       }
+//     } catch (e) {}
+
+//     const pQuit = h < 50 ? (50 - h) / 100 : 0;
+//     if (Math.random() < pQuit) quit = true;
+
+//     if (satNullAllTurn) {
+//       const pFire = disc / 100;
+//       if (Math.random() < pFire) fired = true;
+//     }
+
+//     if (fired || quit) {
+//       if (quit) {
+//         bubbleSpeak(id, "I'm out of here.");
+//         showToast(id + " quit due to low happiness.");
+//       } else {
+//         bubbleSpeak(id, "You're fired! Get out!");
+//         showToast(id + " was fired (discipline enabled it).");
+//       }
+//       try {
+//         if (typeof fireCharacter === 'function') {
+//           fireCharacter(id);
+//         } else {
+//           if (Array.isArray(characters)) {
+//             characters = characters.filter(c => !(c && (c.id === id || c.name === id)));
+//           } else if (characters && characters[id]) {
+//             delete characters[id];
+//           }
+//           const card = document.getElementById('char-' + id);
+//           if (card && card.parentElement) card.parentElement.removeChild(card);
+//         }
+//       } catch (e) {}
+//       addLog(`Team change: ${id} ${quit ? 'quit' : 'fired'}.`);
+//     }
+//   });
+
+//   // PI firing rule if discipline is very low
+//   if (disc < 10) {
+//     const pPI = (10 - disc) / 10; // 0..1
+//     if (Math.random() < pPI) {
+//       // pick highest happiness member to promote
+//       const remaining = getTeamIds().filter(id => id !== currentPIId);
+//       let bestId = remaining[0] || currentPIId;
+//       let bestH = -1;
+//       remaining.forEach(id => {
+//         let h = 50;
+//         try {
+//           if (Array.isArray(characters)) {
+//             let c = characters.find(x => x && (x.id === id || x.name === id));
+//             if (c && typeof c.happiness === 'number') h = c.happiness;
+//           } else if (characters && characters[id] && typeof characters[id].happiness === 'number') {
+//             h = characters[id].happiness;
+//           } else if (typeof charHappiness === 'object' && typeof charHappiness[id] === 'number') {
+//             h = charHappiness[id];
+//           }
+//         } catch(e){}
+//         if (h > bestH) { bestH = h; bestId = id; }
+//       });
+
+//       const msg = "An anonymous complaint sparked a secret investigation and discipline hearing. The secret DEI committee has decided you are toxic and you are hereby fired. " + bestId + " has been promoted to PI and will take over our lab.";
+//       bubbleSpeak(currentPIId, "You're fired! Get out!");
+//       showToast(msg, 6000);
+//       addLog("PI removed due to low discipline. " + msg);
+
+//       // End the game with a PI firing scene
+//       endGameDueToPIFiring(bestId, msg);
+//       return; // prevent further steps this turn
+//     }
+//   }
+
+//   // Reset for next turn
+//   resetTurnPresenceTracking();
+// }
+
+// Resolve end-of-turn firings (discipline threshold) and quits (happiness)
+// This version only allows firing if the member stayed in the *bottom area*
+// for the ENTIRE turn (never in any building), AND discipline >= 80.
 function resolveTurnDepartures() {
   const disc = Math.max(0, Math.min(100, Number(typeof discipline !== 'undefined' ? discipline : 0)));
-  const ids = getTeamIds();
 
-  // Handle individual quit/fire first
-  ids.forEach(id => {
-    const nullDays = Number(daysInNull[id] || 0);
-    const satNullAllTurn = nullDays >= timeforTurn || wasEverOnBoard[id] === false;
-    let fired = false, quit = false;
+  // ——— Voluntary quits first (same logic) ———
+  // Walk actual characters by id (not sidebar slot ids)
+  const charList = Array.isArray(characters) ? characters : Object.values(characters);
+  charList.forEach(c => {
+    if (!c || !c.id) return;
+    const id = c.id;
 
-    // Happiness lookup
+    // Skip the PI completely (spec says "team members")
+    if (id === currentPIId || id === 'sumit') return;
+
+    // --- quits by low happiness (unchanged) ---
     let h = 50;
-    try {
-      if (Array.isArray(characters)) {
-        let c = characters.find(x => x && (x.id === id || x.name === id));
-        if (c && typeof c.happiness === 'number') h = c.happiness;
-      } else if (characters && characters[id] && typeof characters[id].happiness === 'number') {
-        h = characters[id].happiness;
-      } else if (typeof charHappiness === 'object' && typeof charHappiness[id] === 'number') {
-        h = charHappiness[id];
-      }
-    } catch (e) {}
-
+    if (typeof c.happiness === 'number') h = c.happiness;
     const pQuit = h < 50 ? (50 - h) / 100 : 0;
-    if (Math.random() < pQuit) quit = true;
-
-    if (satNullAllTurn) {
-      const pFire = disc / 100;
-      if (Math.random() < pFire) fired = true;
-    }
-
-    if (fired || quit) {
-      if (quit) {
-        bubbleSpeak(id, "I'm out of here.");
-        showToast(id + " quit due to low happiness.");
-      } else {
-        bubbleSpeak(id, "You're fired! Get out!");
-        showToast(id + " was fired (discipline enabled it).");
-      }
-      try {
-        if (typeof fireCharacter === 'function') {
-          fireCharacter(id);
-        } else {
-          if (Array.isArray(characters)) {
-            characters = characters.filter(c => !(c && (c.id === id || c.name === id)));
-          } else if (characters && characters[id]) {
-            delete characters[id];
-          }
-          const card = document.getElementById('char-' + id);
-          if (card && card.parentElement) card.parentElement.removeChild(card);
-        }
-      } catch (e) {}
-      addLog(`Team change: ${id} ${quit ? 'quit' : 'fired'}.`);
+    if (Math.random() < pQuit) {
+      bubbleSpeak(id, "I'm out of here.");
+      showToast(`${c.name} quit due to low happiness.`);
+      try { fireCharacter(id); } catch(_) {}
+      addLog(`Team change: ${id} quit.`);
     }
   });
 
-  // PI firing rule if discipline is very low
-  if (disc < 10) {
-    const pPI = (10 - disc) / 10; // 0..1
-    if (Math.random() < pPI) {
-      // pick highest happiness member to promote
-      const remaining = getTeamIds().filter(id => id !== currentPIId);
-      let bestId = remaining[0] || currentPIId;
-      let bestH = -1;
-      remaining.forEach(id => {
-        let h = 50;
-        try {
-          if (Array.isArray(characters)) {
-            let c = characters.find(x => x && (x.id === id || x.name === id));
-            if (c && typeof c.happiness === 'number') h = c.happiness;
-          } else if (characters && characters[id] && typeof characters[id].happiness === 'number') {
-            h = characters[id].happiness;
-          } else if (typeof charHappiness === 'object' && typeof charHappiness[id] === 'number') {
-            h = charHappiness[id];
+  // ——— Firings by discipline & bottom-idle behavior ———
+  if (disc >= 80) {
+    // Probability rises from 0 at 80 to 1 at 100
+    const pFireBase = Math.min(1, Math.max(0, (disc - 80) / 20));
+
+    (Array.isArray(characters) ? characters : Object.values(characters)).forEach(c => {
+      if (!c || !c.id) return;
+      const id = c.id;
+
+      // Skip the PI
+      if (id === currentPIId || id === 'sumit') return;
+
+      // Stayed in bottom area the whole turn? We track this with daysInNull[id]
+      // (Incremented once per in-game day when c.location is null.)
+      const nullDays = (window.daysInNull && typeof window.daysInNull[id] === 'number') ? window.daysInNull[id] : 0;
+      const stayedBottomAllTurn = nullDays >= timeforTurn;
+
+      if (stayedBottomAllTurn) {
+        // Only consider firing if still in bottom (not currently in a building)
+        const currentlyBottom = !c.location;
+        if (currentlyBottom) {
+          if (Math.random() < pFireBase) {
+            bubbleSpeak(id, "You're fired! Get out!");
+            showToast(`${c.name} was fired for idling all turn (discipline ${disc}).`);
+            try { fireCharacter(id); } catch(_) {}
+            addLog(`Team change: ${id} fired (idle all turn; discipline ${disc}).`);
+          } else {
+            addLog(`${c.name} narrowly avoided being fired (discipline ${disc}).`);
           }
-        } catch(e){}
-        if (h > bestH) { bestH = h; bestId = id; }
-      });
-
-      const msg = "An anonymous complaint sparked a secret investigation and discipline hearing. The secret DEI committee has decided you are toxic and you are hereby fired. " + bestId + " has been promoted to PI and will take over our lab.";
-      bubbleSpeak(currentPIId, "You're fired! Get out!");
-      showToast(msg, 6000);
-      addLog("PI removed due to low discipline. " + msg);
-
-      // End the game with a PI firing scene
-      endGameDueToPIFiring(bestId, msg);
-      return; // prevent further steps this turn
-    }
+        }
+      }
+    });
+  } else {
+    addLog(`Discipline ${disc} — firings disabled (need ≥ 80).`);
   }
 
-  // Reset for next turn
+  // Reset per-turn presence trackers for the next turn
   resetTurnPresenceTracking();
 }
-
 
 
 function endGameDueToPIFiring(newPIId, narrative) {

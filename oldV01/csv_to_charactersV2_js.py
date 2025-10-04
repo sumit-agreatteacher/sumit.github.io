@@ -9,62 +9,20 @@ from typing import Set, List
 
 NUMBER_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
 
-# def coerce_value(key: str, val: str, boolean_keys: Set[str]):
-#     if val is None:
-#         return None
-#     s = str(val).strip()
-#     if s == "":
-#         if key == "location":
-#             return None
-#         return ""
-
-#     if key in boolean_keys:
-#         lower = s.lower()
-#         if lower in ("true", "false", "yes", "no", "1", "0"):
-#             return lower in ("true", "yes", "1")
-
-#     if NUMBER_RE.fullmatch(s):
-#         try:
-#             f = float(s)
-#             return int(f) if f.is_integer() else f
-#         except Exception:
-#             pass
-
-#     lower = s.lower()
-#     if lower in ("true", "false", "yes", "no"):
-#         return lower in ("true", "yes")
-
-#     return s
-
-def sanitize_string(s: str) -> str:
-    if s is None:
-        return ""
-    t = str(s).strip()
-    # Remove a single unmatched leading or trailing quote
-    if (t.startswith('"') and not t.endswith('"')) or (t.startswith("'") and not t.endswith("'")):
-        t = t[1:]
-    if (t.endswith('"') and not t.startswith('"')) or (t.endswith("'") and not t.startswith("'")):
-        t = t[:-1]
-    return t
-
 def coerce_value(key: str, val: str, boolean_keys: Set[str]):
     if val is None:
         return None
     s = str(val).strip()
-
-    # Empty string handling (keep your behavior)
     if s == "":
         if key == "location":
             return None
         return ""
 
-    # Explicit boolean columns
     if key in boolean_keys:
         lower = s.lower()
         if lower in ("true", "false", "yes", "no", "1", "0"):
             return lower in ("true", "yes", "1")
 
-    # Numbers
     if NUMBER_RE.fullmatch(s):
         try:
             f = float(s)
@@ -72,15 +30,11 @@ def coerce_value(key: str, val: str, boolean_keys: Set[str]):
         except Exception:
             pass
 
-    # Generic booleans in free-form text
     lower = s.lower()
     if lower in ("true", "false", "yes", "no"):
         return lower in ("true", "yes")
 
-    # Strings → sanitize to avoid malformed JS
-    return sanitize_string(s)
-
-
+    return s
 
 def to_js_value(v):
     if v is None:
