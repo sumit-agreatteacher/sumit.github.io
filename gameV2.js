@@ -20,7 +20,7 @@ function getTeamIds() {
 }
 
 // === Core game config & state ===
-const totalTurns = 28;
+const totalTurns = 20;
 const timeforTurn = 90; // 每轮 90 天
 let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
