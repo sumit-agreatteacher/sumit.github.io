@@ -143,6 +143,7 @@ function updateUI() {
   document.getElementById("time").textContent = timeLeft;
   document.getElementById("funding").textContent = funding;
   document.getElementById("papers").textContent = progress;
+  document.getElementById("platforms").textContent = platforms;
   document.getElementById("skills").textContent = skills;
   document.getElementById("discipline").textContent = Math.round(Number(discipline) || 0);
   document.getElementById("happiness").textContent  = getTeamAverageHappiness();
@@ -351,6 +352,29 @@ document.querySelectorAll(".building, .card-slot").forEach(target => {
   });
 });
 
+function moveCharacterToBuilding(charId, buildingId) {
+  const card = document.querySelector(`.card[data-character="${charId}"]`);
+  const buildingEl = document.getElementById(buildingId);
+  if (!card || !buildingEl) return false;
+
+  const occ = buildingEl.querySelector('.occupants') || buildingEl;
+  if (!occ.contains(card)) occ.appendChild(card);
+  card.classList.add('in-building');
+
+  // update character model
+  let cObj = null;
+  if (Array.isArray(window.characters)) {
+    cObj = characters.find(x => x && (x.id === charId || x.name === charId));
+  } else if (characters && characters[charId]) {
+    cObj = characters[charId];
+  }
+  if (cObj) cObj.location = buildingEl.dataset.building || buildingId;
+
+  logAction(`${charId} moved to ${cObj?.location || buildingId} (auto)`);
+  if (typeof updateUI === 'function') updateUI();
+  return true;
+}
+
 // 假设 characters 是全局数组或对象
 document.querySelectorAll('.fire-btn').forEach(btn => {
   btn.addEventListener('click', e => {
@@ -483,6 +507,10 @@ function logAction(msg) {
   log.scrollTop = log.scrollHeight;
 }
 
+function hasCardInDOM(id) {
+  return !!document.querySelector(`.card[data-character="${id}"]`);
+}
+
 // === 每天计算 ===
 let __simulatingDay = false;
 function simulateDay() {
@@ -500,15 +528,20 @@ function simulateDay() {
     if (!c) return;
     const id = c.id || c.name;
     if (!id) return;
-    if (!c.location) {
-      if (typeof daysInNull === 'undefined') { window.daysInNull = {}; }
-      if (daysInNull[id] === undefined) daysInNull[id] = 0;
-      daysInNull[id] += 1;
-    } else {
+
+    // Only track people who actually appear on the board at least once
+    const onBoardNow = hasCardInDOM(id);
+    if (onBoardNow) {
       if (typeof wasEverOnBoard === 'undefined') { window.wasEverOnBoard = {}; }
       wasEverOnBoard[id] = true;
+      if (!c.location) {
+        if (typeof daysInNull === 'undefined') { window.daysInNull = {}; }
+        if (daysInNull[id] === undefined) daysInNull[id] = 0;
+        daysInNull[id] += 1;
+      }
     }
   });
+
 
 
   // helper: apply per-character effects depending on where they are
@@ -518,6 +551,8 @@ function simulateDay() {
     // helper random check
     const chance = p => Math.random() < (p || 0);
     let dgain=0;
+    let platgain=0;
+    let pgain=0;
 
     switch (loc) {
       case 'dorm':
@@ -536,7 +571,7 @@ function simulateDay() {
         const lossOff = (c.energyLossatOffice || 1);
         c.energy = Math.max(0, (c.energy || 0) - lossOff);
         dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
-        disc += dgain;
+        discipline += dgain;
         if (dgain > 0) {
           addLog(`${c.name} supervised in office +${dgain} discipline`);
         } else if (dgain < 0) {
@@ -558,23 +593,22 @@ function simulateDay() {
           }
         } else {
           if (platforms > 100) {
-            // Stochastic approach: single random draw decides gain / loss / no-change
-            let pgain=stochasticGain(Number(c.progressGainatLab ?? 0), Number(c.progressGainatLabProbability ?? 0), Number(c.progressLossatLab ?? 0), Number(c.progressLossatLabProbability ?? 0))
+            // papers path
+            pgain = stochasticGain(Number(c.progressGainatLab ?? 0), Number(c.progressGainatLabProbability ?? 0), Number(c.progressLossatLab ?? 0), Number(c.progressLossatLabProbability ?? 0));
             progress += pgain;
             if (pgain > 0) {
               addLog(`${c.name} succeeded in lab +${pgain} papers`);
-            } else if (dgain < 0) {
-              addLog(`${c.name} had a setback in lab -${pgain} papers`);
+            } else if (pgain < 0) {                // <-- was dgain
+              addLog(`${c.name} had a setback in lab ${pgain} papers`);
             }
-          }
-          else {
-            // Stochastic approach: single random draw decides gain / loss / no-change
-            let platgain=stochasticGain(Number(c.platformGainatLab ?? 0), Number(c.platformGainatLabProbability ?? 0), Number(c.platformLossatLab ?? 0), Number(c.platformLossatLabProbability ?? 0))
+          } else {
+            // platforms path
+            platgain = stochasticGain(Number(c.platformGainatLab ?? 0), Number(c.platformGainatLabProbability ?? 0), Number(c.platformLossatLab ?? 0), Number(c.platformLossatLabProbability ?? 0));
             platforms += platgain;
             if (platgain > 0) {
               addLog(`${c.name} succeeded in lab +${platgain} platforms`);
-            } else if (dgain < 0) {
-              addLog(`${c.name} had a setback in lab -${platgain} platforms`);
+            } else if (platgain < 0) {             // <-- was dgain
+              addLog(`${c.name} had a setback in lab ${platgain} platforms`);
             }
           }
         }
@@ -586,7 +620,7 @@ function simulateDay() {
           //addLog(`${c.name} used funding -${c.fundingLossatLab}`);
         }
         dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
-        disc += dgain;
+        discipline += dgain;
         if (dgain > 0) {
           addLog(`${c.name} supervised in lab +${dgain} discipline`);
         } else if (dgain < 0) {
@@ -601,7 +635,7 @@ function simulateDay() {
         }
         c.energy = Math.max(0, (c.energy || 0) - (c.energyLossatLecture || 1));
         dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
-        disc += dgain;
+        discipline += dgain;
         if (dgain > 0) {
           addLog(`${c.name} supervised in office +${dgain} discipline`);
         } else if (dgain < 0) {
@@ -619,15 +653,15 @@ function simulateDay() {
           c.energy = Math.max(0, (c.energy || 0) - el);
           addLog(`${c.name} overdid it -${el} energy`);
         }
-        if (chance(c.skillsGainatBarProbability)) {
-          const rg = (c.skillsGainatBar || 1);
-          skills += rg;
-        } else if (chance(c.skillsLossatBarProbability)) {
-          const rl = (c.skillsLossatBar || 0.1);
-          skills = Math.max(0, skills - rl);
-        }
+        // if (chance(c.skillsGainatBarProbability)) {
+        //   const rg = (c.skillsGainatBar || 1);
+        //   skills += rg;
+        // } else if (chance(c.skillsLossatBarProbability)) {
+        //   const rl = (c.skillsLossatBar || 0.1);
+        //   skills = Math.max(0, skills - rl);
+        // }
         dgain=stochasticGain(0, 0, Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
-        disc += dgain;
+        discipline += dgain;
         if (dgain < 0) {
           addLog(`${c.name} conspired in bar -${dgain} discipline`);
         }
@@ -658,7 +692,7 @@ function simulateDay() {
         break;
       case 'bar':
         // mirror energy outcome roughly
-        dh += happinessGainatBar;
+        dh += c.happinessGainatBar;
         //if ((c.energy || 0) > 0 && (c.energy || 0) < 100) dh += 0.1;
         break;
     }
@@ -667,10 +701,20 @@ function simulateDay() {
     // Apply and clamp
     c.happiness = Math.max(0, Math.min(100, Math.round((c.happiness + dh) * 100) / 100));
 
+    // Auto-move to bar at end of day with gotobarProbability
+    const pBar = Number(c.gotobarProbability || 0);
+    if (pBar > 0 && Math.random() < pBar) {
+      if (c.location !== 'bar') {
+        moveCharacterToBuilding(c.id || c.name, 'bar');
+        try { makeCharacterSpeak(c.id || c.name, "🍻 Heading to the bar!"); } catch(_) {}
+      }
+    }
+
+
     // keep global numbers within reasonable bounds
     funding = Math.max(0, Math.min(MAXFUNDING, Math.round(funding * MAXFUNDING) / MAXFUNDING));
     progress = Math.max(0, Math.min(MAXPROGRESS, Math.round(progress * MAXPROGRESS) / MAXPROGRESS));
-    disc = Math.max(0, Math.min(MAXDISC, Math.round(disc * MAXDISC) / MAXDISC)); // fixed variable
+    discipline = Math.max(0, Math.min(MAXDISC, Math.round(discipline * MAXDISC) / MAXDISC)); // fixed variable
     platforms = Math.max(0, Math.min(MAXPLATFORMS, Math.round(platforms * MAXPLATFORMS) / MAXPLATFORMS)); // fixed variable
     skills = Math.max(0, Math.min(MAXSKILLS, Math.round(skills * MAXSKILLS) / MAXSKILLS));
     c.energy = Math.max(0, Math.min(100, Math.round((c.energy || 0) * 100) / 100));
@@ -790,6 +834,9 @@ function resolveTurnDepartures() {
   charList.forEach(c => {
     if (!c || !c.id) return;
     const id = c.id;
+    
+    const wasOnBoard = window.wasEverOnBoard && window.wasEverOnBoard[id] === true;
+    if (!wasOnBoard) return; // skip non-recruited / never-visible people
 
     // Skip the PI completely (spec says "team members")
     if (id === currentPIId || id === 'sumit') return;
@@ -883,7 +930,7 @@ if (timeLeft <= 0) {
     }
   }
   // write a daily summary so changes are visible in the log
-  addLog(`Day summary — Funding: ${funding}, Papers: ${progress}, Skills: ${skills}`);
+  addLog(`Day summary — Funding: ${funding}, Papers: ${progress}, Platforms: ${platforms}, Skills: ${skills}, Discipline: ${discipline}`);
   updateUI();
   drawBackground();
 
