@@ -300,3 +300,9 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+/* Status color tones */
+#status .stat { border: 1px solid transparent; }
+#status .stat.ok    { background: rgba(76,175,80,.18);  border-color: rgba(76,175,80,.7);  }
+#status .stat.warn  { background: rgba(255,193,7,.18);  border-color: rgba(255,193,7,.7);  }
+#status .stat.bad   { background: rgba(244,67,54,.18);  border-color: rgba(244,67,54,.7);  }
+#status .stat.neutral { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.08); }

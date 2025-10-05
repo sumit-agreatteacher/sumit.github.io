@@ -26,16 +26,17 @@ let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
 // milliseconds per in-game day (configurable). Change this to speed up/slow down time.
 let dayMs = 1000; // default 1000ms = 1s per day
-let MINFUNDINGTORECRUIT=100;
+const MINFUNDINGTORECRUIT=100;
 // === Recruitment weighting constants (edit as you like) ===
 window.MAXPAPERS      = typeof window.MAXPAPERS      === 'number' ? window.MAXPAPERS      : 65;
 window.TARGETFUNDING  = typeof window.TARGETFUNDING  === 'number' ? window.TARGETFUNDING  : 1000;
 window.TARGETSKILLS   = typeof window.TARGETSKILLS   === 'number' ? window.TARGETSKILLS   : 1000;
-let MAXFUNDING=1000;
-let MAXPROGRESS=100;
-let MAXSKILLS=1000;
-let MAXDISC=100;
-let MAXPLATFORMS=200;
+const FUNDINGOK=1000;
+const MAXFUNDING=3000;
+const MAXPROGRESS=100;
+const MAXSKILLS=1000;
+const MAXDISC=100;
+const MAXPLATFORMS=105;
 
 // 状态数值
 let funding = 100;
@@ -134,6 +135,37 @@ function getTeamAverageHappiness() {
   return Math.round(avg);
 }
 
+function classifyPct(pct) {
+  if (pct == null || isNaN(pct)) return 'neutral';
+  if (pct < 25) return 'bad';
+  if (pct < 60) return 'warn';
+  return 'ok';
+}
+function paintStatBox(wrapperEl, pct) {
+  if (!wrapperEl) return;
+  wrapperEl.classList.remove('bad','warn','ok','neutral');
+  wrapperEl.classList.add(classifyPct(pct));
+}
+function setStat(elId, text, pct) {
+  const span = document.getElementById(elId);
+  if (span) span.textContent = text;
+  const box = span ? span.closest('.stat') : null;
+  paintStatBox(box, pct);
+}
+
+function classifyFunding(value, max) {
+  if (value == null || isNaN(value)) return 'neutral';
+  if (value < MINFUNDINGTORECRUIT*2) return 'bad';    // < 25% of MAXFUNDING
+  if (value < FUNDINGOK) return 'warn';   // 25–60% of MAXFUNDING
+  return 'ok';                              // ≥ 60% of MAXFUNDING
+}
+
+function paintStatBoxByClass(wrapperEl, klass) {
+  if (!wrapperEl) return;
+  wrapperEl.classList.remove('bad','warn','ok','neutral');
+  wrapperEl.classList.add(klass || 'neutral');
+}
+
 function updateUI() {
   if (__updatingUI) return; __updatingUI = true;
   try {
@@ -141,12 +173,32 @@ function updateUI() {
   document.getElementById("currentTurn").textContent = currentTurn;
   document.getElementById("totalTurns").textContent = totalTurns;
   document.getElementById("time").textContent = timeLeft;
-  document.getElementById("funding").textContent = funding;
-  document.getElementById("papers").textContent = progress;
-  document.getElementById("platforms").textContent = platforms;
+
+  // Percent bases (defined near top of file)
+  /// MAXFUNDING, MAXPROGRESS, MAXPLATFORMS, MAXDISC are already defined globally.
+  // const fundingPct    = Math.max(0, Math.min(100, Math.round((funding    / MAXFUNDING)   * 100)));
+  const papersPct     = Math.max(0, Math.min(100, Math.round((progress   / MAXPROGRESS)  * 100)));
+  const platformsPct  = Math.max(0, Math.min(100, Math.round((platforms  / MAXPLATFORMS) * 100)));
+  const disciplinePct = Math.max(0, Math.min(100, Math.round(Number(discipline) || 0)));
+  const happinessPct  = Math.max(0, Math.min(100, Math.round(Number(getTeamAverageHappiness()) || 0)));
+
+  // Funding: show k€, color by ratio to MAXFUNDING
+  const fundingBox = document.getElementById("funding");
+  if (fundingBox) {
+    fundingBox.textContent = `${Math.round(funding)} k€`;
+    const klass = classifyFunding(funding, MAXFUNDING);
+    paintStatBoxByClass(fundingBox.closest('.stat'), klass);
+  }
+
+  // Format + colorize
+  // setStat("funding",    `${Math.round(funding)} k€`, fundingPct);   // Funding in kEuro
+  setStat("papers",     `${papersPct}%`,            papersPct);     // Papers in %
+  setStat("platforms",  `${platformsPct}%`,         platformsPct);  // Platforms in %
+  setStat("discipline", `${disciplinePct}%`,        disciplinePct); // Discipline in %
+  setStat("happiness",  `${happinessPct}%`,         happinessPct);  // Happiness in %
+
+  // (Optionally keep skills plain for now)
   document.getElementById("skills").textContent = skills;
-  document.getElementById("discipline").textContent = Math.round(Number(discipline) || 0);
-  document.getElementById("happiness").textContent  = getTeamAverageHappiness();
 
   // Update energy bars (width + color) for characters. Use multiple fallbacks
 
@@ -680,13 +732,29 @@ function simulateDay() {
         }
         break;
       default:
-        // unknown location: do nothing
+        // unknown location: same effect as bar
+
+        if (chance(c.energyGainatBarProbability)) {
+          const eg = (c.energyGainatBar || 1);
+          c.energy = Math.min(100, (c.energy || 0) + eg);
+          addLog(`${c.name} had a drink +${eg} energy`);
+        } else if (chance(c.energyLossatBarProbability)) {
+          const el = (c.energyLossatBar || 5);
+          c.energy = Math.max(0, (c.energy || 0) - el);
+          addLog(`${c.name} overdid it -${el} energy`);
+        }
+        dgain=stochasticGain(0, 0, Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
+        discipline += dgain;
+        if (dgain < 0) {
+          addLog(`${c.name} conspired in bar -${dgain} discipline`);
+        }
+
         break;
     }
 
     // --- Simple happiness model (0..100) bound and updated per day ---
     // Base small drift toward 50 to avoid stagnation
-    c.happiness = (typeof c.happiness === 'number') ? c.happiness : 50;
+    //c.happiness = (typeof c.happiness === 'number') ? c.happiness : 50;
     let dh = 0;
     switch (loc) {
       case 'dorm':
@@ -714,6 +782,9 @@ function simulateDay() {
     // Apply and clamp
     c.happiness = Math.max(0, Math.min(100, Math.round((c.happiness + dh) * 100) / 100));
 
+    const fundingcosts = (c.Cost || 1);
+    funding -= fundingcosts;
+
     // Auto-move to bar at end of day with gotobarProbability
     const pBar = Number(c.gotobarProbability || 0);
     if (pBar > 0 && Math.random() < pBar) {
@@ -725,11 +796,11 @@ function simulateDay() {
 
 
     // keep global numbers within reasonable bounds
-    funding = Math.max(0, Math.min(MAXFUNDING, Math.round(funding * MAXFUNDING) / MAXFUNDING));
-    progress = Math.max(0, Math.min(MAXPROGRESS, Math.round(progress * MAXPROGRESS) / MAXPROGRESS));
+    funding = Math.max(-1000, Math.min(MAXFUNDING, Math.round(funding * MAXFUNDING) / MAXFUNDING));
+    progress = Math.max(-1000, Math.min(MAXPROGRESS, Math.round(progress * MAXPROGRESS) / MAXPROGRESS));
     discipline = Math.max(0, Math.min(MAXDISC, Math.round(discipline * MAXDISC) / MAXDISC)); // fixed variable
-    platforms = Math.max(0, Math.min(MAXPLATFORMS, Math.round(platforms * MAXPLATFORMS) / MAXPLATFORMS)); // fixed variable
-    skills = Math.max(0, Math.min(MAXSKILLS, Math.round(skills * MAXSKILLS) / MAXSKILLS));
+    platforms = Math.max(-1000, Math.min(MAXPLATFORMS, Math.round(platforms * MAXPLATFORMS) / MAXPLATFORMS)); // fixed variable
+    skills = Math.max(-1000, Math.min(MAXSKILLS, Math.round(skills * MAXSKILLS) / MAXSKILLS));
     c.energy = Math.max(0, Math.min(100, Math.round((c.energy || 0) * 100) / 100));
   }
 
