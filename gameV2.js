@@ -576,6 +576,13 @@ function simulateDay() {
         }
         const lossOff = (c.energyLossatOffice || 1);
         c.energy = Math.max(0, (c.energy || 0) - lossOff);
+        if (platforms > 100) {
+          if (chance(c.progressGainatOfficeProbability)) {
+            const inc = (c.progressGainatOffice || 1);
+            progress += inc;
+            addLog(`${c.name} wrote papers +${inc}`);
+          }
+        }
         dgain=stochasticGain(Number(c.disciplineGain ?? 0), Number(c.disciplineGainProbability ?? 0), Number(c.disciplineLoss ?? 0), Number(c.disciplineLossProbability ?? 0))
         discipline += dgain;
         if (dgain > 0) {
