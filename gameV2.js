@@ -1026,7 +1026,9 @@ if (timeLeft <= 0) {
     }
   }
   // write a daily summary so changes are visible in the log
-  addLog(`Day summary — Funding: ${funding}, Papers: ${progress}, Platforms: ${platforms}, Skills: ${skills}, Discipline: ${discipline}`);
+  
+  //addLog(`Day summary — Funding: ${funding}, Papers: ${progress}, Platforms: ${platforms}, Skills: ${skills}, Discipline: ${discipline}`);
+  
   updateUI();
   drawBackground();
 
