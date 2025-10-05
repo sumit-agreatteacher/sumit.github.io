@@ -29,14 +29,15 @@ let dayMs = 1000; // default 1000ms = 1s per day
 const MINFUNDINGTORECRUIT=100;
 // === Recruitment weighting constants (edit as you like) ===
 window.MAXPAPERS      = typeof window.MAXPAPERS      === 'number' ? window.MAXPAPERS      : 65;
-window.TARGETFUNDING  = typeof window.TARGETFUNDING  === 'number' ? window.TARGETFUNDING  : 1000;
-window.TARGETSKILLS   = typeof window.TARGETSKILLS   === 'number' ? window.TARGETSKILLS   : 1000;
-const FUNDINGOK=1000;
-const MAXFUNDING=3000;
-const MAXPROGRESS=100;
+window.TARGETFUNDING  = typeof window.TARGETFUNDING  === 'number' ? window.TARGETFUNDING  : 500;
+window.TARGETSKILLS   = typeof window.TARGETSKILLS   === 'number' ? window.TARGETSKILLS   : 500;
+const FUNDINGOK=500;
+const MAXFUNDING=1000;
 const MAXSKILLS=1000;
 const MAXDISC=100;
 const MAXPLATFORMS=105;
+const TENUREPROGRESS=200;
+const SUPERTEACHER=500;
 
 // 状态数值
 let funding = 100;
@@ -175,9 +176,9 @@ function updateUI() {
   document.getElementById("time").textContent = timeLeft;
 
   // Percent bases (defined near top of file)
-  /// MAXFUNDING, MAXPROGRESS, MAXPLATFORMS, MAXDISC are already defined globally.
+  /// MAXFUNDING, TENUREPROGRESS, MAXPLATFORMS, MAXDISC are already defined globally.
   // const fundingPct    = Math.max(0, Math.min(100, Math.round((funding    / MAXFUNDING)   * 100)));
-  const papersPct     = Math.max(0, Math.min(100, Math.round((progress   / MAXPROGRESS)  * 100)));
+  const papersPct     = Math.max(0, Math.min(100, Math.round((progress   / TENUREPROGRESS)  * 100)));
   const platformsPct  = Math.max(0, Math.min(100, Math.round((platforms  / 100) * 100)));
   const disciplinePct = Math.max(0, Math.min(100, Math.round(Number(discipline) || 0)));
   const happinessPct  = Math.max(0, Math.min(100, Math.round(Number(getTeamAverageHappiness()) || 0)));
@@ -808,7 +809,7 @@ function simulateDay() {
 
     // keep global numbers within reasonable bounds
     funding = Math.max(-1000, Math.min(MAXFUNDING, Math.round(funding * MAXFUNDING) / MAXFUNDING));
-    progress = Math.max(-1000, Math.min(MAXPROGRESS, Math.round(progress * MAXPROGRESS) / MAXPROGRESS));
+    progress = Math.max(-1000, Math.min(TENUREPROGRESS, Math.round(progress * TENUREPROGRESS) / TENUREPROGRESS));
     discipline = Math.max(0, Math.min(MAXDISC, Math.round(discipline * MAXDISC) / MAXDISC)); // fixed variable
     platforms = Math.max(-1000, Math.min(MAXPLATFORMS, Math.round(platforms * MAXPLATFORMS) / MAXPLATFORMS)); // fixed variable
     skills = Math.max(-1000, Math.min(MAXSKILLS, Math.round(skills * MAXSKILLS) / MAXSKILLS));
@@ -1040,8 +1041,8 @@ const ENDINGS = {
 };
 
 function checkEnding() {
-  if (progress >= 100) {
-    if (skills >= 100) {
+  if (progress >= TENUREPROGRESS) {
+    if (skills >= SUPERTEACHER) {
       endGame(ENDINGS.NOBEL_WINNER);
     } else {
     endGame(ENDINGS.TENURE_PASS);
@@ -1051,7 +1052,7 @@ function checkEnding() {
 }
 
 function checkEndingintheEnd() {
-  if (skills >= 50) {
+  if (skills >= SUPERTEACHER) {
     endGame(ENDINGS.TEACHING_HERO);
   } else {
     endGame(ENDINGS.EXPERIMENTAL_CHAOS);
