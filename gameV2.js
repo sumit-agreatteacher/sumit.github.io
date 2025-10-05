@@ -156,8 +156,8 @@ function setStat(elId, text, pct) {
 
 function classifyFunding(value, max) {
   if (value == null || isNaN(value)) return 'neutral';
-  if (value < MINFUNDINGTORECRUIT*2) return 'bad';    // < 25% of MAXFUNDING
-  if (value < FUNDINGOK) return 'warn';   // 25–60% of MAXFUNDING
+  if (value < max*0.2) return 'bad';    // < 25% of MAXFUNDING
+  if (value < max*0.5) return 'warn';   // 25–60% of MAXFUNDING
   return 'ok';                              // ≥ 60% of MAXFUNDING
 }
 
