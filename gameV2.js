@@ -190,6 +190,17 @@ function updateUI() {
     paintStatBoxByClass(fundingBox.closest('.stat'), klass);
   }
 
+  // Skills: show raw value, color by ratio to MAXSKILLS
+  {
+    const el = document.getElementById("skills");
+    if (el) {
+      el.textContent = Math.round(skills);
+      const wrapper = el.closest('.stat');
+      const klass = classifyFunding(skills, MAXSKILLS); // thresholds: <25% bad, <60% warn, else ok
+      paintStatBoxByClass(wrapper, klass);
+    }
+  }
+
   // Format + colorize
   // setStat("funding",    `${Math.round(funding)} k€`, fundingPct);   // Funding in kEuro
   setStat("papers",     `${papersPct}%`,            papersPct);     // Papers in %
@@ -198,7 +209,7 @@ function updateUI() {
   setStat("happiness",  `${happinessPct}%`,         happinessPct);  // Happiness in %
 
   // (Optionally keep skills plain for now)
-  document.getElementById("skills").textContent = skills;
+  // document.getElementById("skills").textContent = skills;
 
   // Update energy bars (width + color) for characters. Use multiple fallbacks
 
@@ -782,8 +793,8 @@ function simulateDay() {
     // Apply and clamp
     c.happiness = Math.max(0, Math.min(100, Math.round((c.happiness + dh) * 100) / 100));
 
-    const fundingcosts = (c.Cost || 1);
-    funding -= fundingcosts;
+    // const fundingcosts = (c.Cost || 1);
+    funding -= c.Cost;
 
     // Auto-move to bar at end of day with gotobarProbability
     const pBar = Number(c.gotobarProbability || 0);
