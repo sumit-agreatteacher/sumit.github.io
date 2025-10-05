@@ -178,7 +178,7 @@ function updateUI() {
   /// MAXFUNDING, MAXPROGRESS, MAXPLATFORMS, MAXDISC are already defined globally.
   // const fundingPct    = Math.max(0, Math.min(100, Math.round((funding    / MAXFUNDING)   * 100)));
   const papersPct     = Math.max(0, Math.min(100, Math.round((progress   / MAXPROGRESS)  * 100)));
-  const platformsPct  = Math.max(0, Math.min(100, Math.round((platforms  / MAXPLATFORMS) * 100)));
+  const platformsPct  = Math.max(0, Math.min(100, Math.round((platforms  / 100) * 100)));
   const disciplinePct = Math.max(0, Math.min(100, Math.round(Number(discipline) || 0)));
   const happinessPct  = Math.max(0, Math.min(100, Math.round(Number(getTeamAverageHappiness()) || 0)));
 
