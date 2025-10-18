@@ -25,7 +25,7 @@ const timeforTurn = 90; // 每轮 90 天
 let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
 // milliseconds per in-game day (configurable). Change this to speed up/slow down time.
-let dayMs = 10; // default 1000ms = 1s per day
+let dayMs = 1000; // default 1000ms = 1s per day
 const MINFUNDINGTORECRUIT=100;
 // === Recruitment weighting constants (edit as you like) ===
 window.MAXPAPERS      = typeof window.MAXPAPERS      === 'number' ? window.MAXPAPERS      : 65;
@@ -1135,6 +1135,33 @@ function showTenurePassEnding() {
       letter.style.zIndex = '1001'; // 确保在蛋糕上层
       document.body.appendChild(letter);
 
+        // 🎯 创建“Next”按钮
+      const nextButton = document.createElement('button');
+      nextButton.textContent = 'Next →';
+      nextButton.style.position = 'absolute';
+      nextButton.style.top = '80%';
+      nextButton.style.left = '50%';
+      nextButton.style.transform = 'translate(-50%, -50%)';
+      nextButton.style.padding = '15px 40px';
+      nextButton.style.fontSize = '22px';
+      nextButton.style.backgroundColor = '#ff69b4';
+      nextButton.style.color = 'white';
+      nextButton.style.border = 'none';
+      nextButton.style.borderRadius = '10px';
+      nextButton.style.cursor = 'pointer';
+      nextButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+      nextButton.style.zIndex = '1002';
+
+      // 鼠标悬停效果
+      nextButton.onmouseover = () => nextButton.style.backgroundColor = '#ff85c1';
+      nextButton.onmouseout = () => nextButton.style.backgroundColor = '#ff69b4';
+
+      // 点击跳转到新页面（例如 next.html）
+      nextButton.onclick = () => {
+        window.location.href = 'wish.html';
+      };
+  document.body.appendChild(nextButton);
+
     addLog('🎉 Game over：pass Tenure review and happy birthday!');
 }
 
@@ -1171,6 +1198,33 @@ function showNobelWinnerEnding() {
       letter.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
       letter.style.zIndex = '1001'; 
       document.body.appendChild(letter);
+
+              // 🎯 创建“Next”按钮
+      const nextButton = document.createElement('button');
+      nextButton.textContent = 'Next →';
+      nextButton.style.position = 'absolute';
+      nextButton.style.top = '80%';
+      nextButton.style.left = '50%';
+      nextButton.style.transform = 'translate(-50%, -50%)';
+      nextButton.style.padding = '15px 40px';
+      nextButton.style.fontSize = '22px';
+      nextButton.style.backgroundColor = '#ff69b4';
+      nextButton.style.color = 'white';
+      nextButton.style.border = 'none';
+      nextButton.style.borderRadius = '10px';
+      nextButton.style.cursor = 'pointer';
+      nextButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+      nextButton.style.zIndex = '1002';
+
+      // 鼠标悬停效果
+      nextButton.onmouseover = () => nextButton.style.backgroundColor = '#ff85c1';
+      nextButton.onmouseout = () => nextButton.style.backgroundColor = '#ff69b4';
+
+      // 点击跳转到新页面（例如 next.html）
+      nextButton.onclick = () => {
+        window.location.href = 'wish.html';
+      };
+  document.body.appendChild(nextButton);
 
     addLog('🎉 Game over：Nobel winner and happy birthday!');
 }
@@ -1209,6 +1263,33 @@ function showTeachingHeroEnding() {
       letter.style.zIndex = '1001'; 
       document.body.appendChild(letter);
 
+              // 🎯 创建“Next”按钮
+      const nextButton = document.createElement('button');
+      nextButton.textContent = 'Next →';
+      nextButton.style.position = 'absolute';
+      nextButton.style.top = '80%';
+      nextButton.style.left = '50%';
+      nextButton.style.transform = 'translate(-50%, -50%)';
+      nextButton.style.padding = '15px 40px';
+      nextButton.style.fontSize = '22px';
+      nextButton.style.backgroundColor = '#ff69b4';
+      nextButton.style.color = 'white';
+      nextButton.style.border = 'none';
+      nextButton.style.borderRadius = '10px';
+      nextButton.style.cursor = 'pointer';
+      nextButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+      nextButton.style.zIndex = '1002';
+
+      // 鼠标悬停效果
+      nextButton.onmouseover = () => nextButton.style.backgroundColor = '#ff85c1';
+      nextButton.onmouseout = () => nextButton.style.backgroundColor = '#ff69b4';
+
+      // 点击跳转到新页面（例如 next.html）
+      nextButton.onclick = () => {
+        window.location.href = 'wish.html';
+      };
+  document.body.appendChild(nextButton);
+
     addLog('🎉 Game over：Great teacher!');
 }
 
@@ -1245,6 +1326,33 @@ function showExperimentalChaosEnding() {
       letter.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
       letter.style.zIndex = '1001'; 
       document.body.appendChild(letter);
+
+              // 🎯 创建“Next”按钮
+      const nextButton = document.createElement('button');
+      nextButton.textContent = 'Next →';
+      nextButton.style.position = 'absolute';
+      nextButton.style.top = '80%';
+      nextButton.style.left = '50%';
+      nextButton.style.transform = 'translate(-50%, -50%)';
+      nextButton.style.padding = '15px 40px';
+      nextButton.style.fontSize = '22px';
+      nextButton.style.backgroundColor = '#ff69b4';
+      nextButton.style.color = 'white';
+      nextButton.style.border = 'none';
+      nextButton.style.borderRadius = '10px';
+      nextButton.style.cursor = 'pointer';
+      nextButton.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+      nextButton.style.zIndex = '1002';
+
+      // 鼠标悬停效果
+      nextButton.onmouseover = () => nextButton.style.backgroundColor = '#ff85c1';
+      nextButton.onmouseout = () => nextButton.style.backgroundColor = '#ff69b4';
+
+      // 点击跳转到新页面（例如 next.html）
+      nextButton.onclick = () => {
+        window.location.href = 'wish.html';
+      };
+  document.body.appendChild(nextButton);
 
     addLog('🎉 Game over：Expermental Chaos!');
 }
