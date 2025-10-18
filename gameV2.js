@@ -25,7 +25,7 @@ const timeforTurn = 90; // 每轮 90 天
 let timeLeft = timeforTurn; // 每轮 90 天
 let timer = null;
 // milliseconds per in-game day (configurable). Change this to speed up/slow down time.
-let dayMs = 1000; // default 1000ms = 1s per day
+let dayMs = 10; // default 1000ms = 1s per day
 const MINFUNDINGTORECRUIT=100;
 // === Recruitment weighting constants (edit as you like) ===
 window.MAXPAPERS      = typeof window.MAXPAPERS      === 'number' ? window.MAXPAPERS      : 65;
