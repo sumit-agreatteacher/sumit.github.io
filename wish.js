@@ -110,7 +110,12 @@ const wishes = [
 
   { author: "Ilango", text: "Happy birthday, Man!" },
   { author: "Gentle", text: "May this new orbit around the sun be as precise and extraordinary as the quantum clock you are building. May Your wisdom inspire, your principles guide, and your dedication motivate the people around you. Your kindness always make every moment filled with joy." },
-  { author: "Mehrdad", text: "Wishing you happy birthday filled with joy and success!" },
+  { author: "Group1",
+    type: "bubble",
+    group: [
+      { author: "Junyu & Zhichao & Yufei", text: "Happy birthday, Sumit! Wish you be happy everyday, every hour, every minute and even every second."},
+      { author: "Mehrdad", text: "Wishing you a happy birthday filled with joy and success!" }
+    ]},
 
   { author: "Sheng", 
     type: "letter",
@@ -133,11 +138,33 @@ const wishesContainer = document.getElementById('wishesContainer');
 function loadWishes() {
   wishes.forEach(wish => {
     const card = document.createElement('div');
-    card.className = 'wish-card';
-    card.innerHTML = `
-      <div class="wish-author">${wish.author}</div>
-      <div class="wish-text">${wish.text}</div>
-    `;
+    if (wish.type === "letter") {
+      card.className = 'wish-card letter-style';
+      card.innerHTML = `
+        <div class="wish-author">${wish.author}</div>
+        <div class="wish-text">${wish.text}</div>
+      `;
+    } 
+    else if (wish.type === "bubble") {
+      card.className = 'wish-card bubble-style';
+      let content = '';
+      wish.group.forEach(person => {
+        content += `
+          <div class="mini-wish">
+            <div class="mini-author">${person.author}:</div>
+            <div class="mini-text">${person.text}</div>
+          </div>
+        `;
+      });
+      card.innerHTML = content;
+    } 
+    else {
+      card.className = 'wish-card';
+      card.innerHTML = `
+        <div class="wish-author">${wish.author}</div>
+        <div class="wish-text">${wish.text}</div>
+      `;
+    }
     wishesContainer.appendChild(card);
   });
 }

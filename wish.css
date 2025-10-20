@@ -97,3 +97,49 @@ body {
   color: #555;
   line-height: 1.6;
 }
+
+/* 🌸 多人泡泡祝福样式 */
+.bubble-style {
+  background: #fffdfc;
+  border: 2px solid #ffb6c1;
+  border-radius: 30px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  padding: 25px 30px;
+  width: 420px;
+  text-align: left;
+  font-family: 'Segoe UI', sans-serif;
+  position: relative;
+  line-height: 1.6;
+}
+
+.bubble-style::after {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  left: 40px;
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+  border-top-color: #ffb6c1;
+}
+
+.mini-wish {
+  margin-bottom: 12px;
+  border-bottom: 1px dashed #f3b0c3;
+  padding-bottom: 8px;
+}
+
+.mini-wish:last-child {
+  border-bottom: none;
+}
+
+.mini-author {
+  font-weight: bold;
+  color: #e94f8a;
+  margin-bottom: 3px;
+}
+
+.mini-text {
+  color: #333;
+  font-size: 0.95em;
+}
