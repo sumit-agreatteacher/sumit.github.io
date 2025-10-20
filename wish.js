@@ -92,10 +92,41 @@ if (mainMessage) {
 
 // === 💝 个人祝福卡片 ===
 const wishes = [
-  { author: "Shayne", text: "Sumit, your passion and warmth light up every room you walk into!" },
-  { author: "Sheng", text: "Happy Birthday! I wish you will be a professor in the real world and live in the world where you want. If the world is not what you want, you will have the power to change it!" },
-  { author: "Andras", text: "Keep being curious, humble, and brilliant — the world needs more people like you!" },
-  { author: "Alex", text: "You make research look like magic. Keep shining, Sumit!" }
+    {
+    author: "Shayne",
+    type: "letter", // ✅ 标记为信件类型
+    text: `
+    <p><strong>Dear Sumit,</strong></p>
+    <p>“Professor” signifies a teacher — a guide and mentor who illuminates the path of knowledge. You embody that word in its truest sense.</p>
+    <p>Wise, passionate, brilliant, and endlessly creative, you have an unparalleled gift for inspiring and nurturing young minds toward their fullest potential. Beyond being an extraordinary teacher, you are a visionary physicist whose curiosity, rigor, and imagination have the power to reshape our understanding of the world.</p>
+    <p>I feel deeply fortunate and honored to have shared these past few years learning from you, experiencing the joy of discovery alongside you, and — most importantly — calling you my friend.</p>
+    <p>I look forward with great excitement to all that you will achieve in the years ahead. I hope we will continue to work together always, and that I may be among the first to witness the truly exceptional wonders you will create.</p>
+    <p>One day, I hope to attend your prize ceremony in Sweden — a celebration not only of your brilliance but of the spirit of curiosity and mentorship you so beautifully embody.</p>
+    <p>With deepest respect and lasting friendship,</p>
+    <p><em>Forever your friend,<br>Shayne</em></p>
+    <p><strong>Happy Birthday, Professor Sumit Boss!</strong></p>
+    `
+  },
+  { author: "Gentle", text: "May this new orbit around the sun be as precise and extraordinary as the quantum clock you are building. May Your wisdom inspire, your principles guide, and your dedication motivate the people around you. Your kindness always make every moment filled with joy." },
+  
+  { author: "Ilango", text: "Happy birthday, Man!" },
+  
+  { author: "Mehrdad", text: "Wishing you happy birthday filled with joy and success!" },
+
+  { author: "Sheng", 
+    type: "letter",
+    text: `
+    <p> Dear Sumit Boss, </p>
+    <p> Happy Birthday! I wish you will be a professor in the real world in a few years (sooner is better!). </p>
+    <p> Why so? Because I believe you can make a better world with what is in your mind and your knowledge, your experience. I have seen and feel your teaching, which is a wonderful experience for me. It inspires me everytime even though some knowledge I had learned before.</p>
+    <p> I should not be the only person who is benefited from your teaching. More people should be able to learn from you, and more people will be inspired by you. </p>
+    <p> As a professor, you can teach more students, and you can guide more researchers. Your ideas will be spread more widely, and your influence will be larger. </p>
+    <p> That is how I want to see the world changes with your ideas, which will 200% improve the current world. </p>
+    <p> So, I wish you will have the power to change the world! </p>
+    <p> Today I wish you happy birthday first, </p>
+    <p> Sheng </p>
+    `
+    }
 ];
 
 const wishesContainer = document.getElementById('wishesContainer');
