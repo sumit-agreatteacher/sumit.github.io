@@ -107,10 +107,9 @@ const wishes = [
     <p><strong>Happy Birthday, Professor Sumit Boss!</strong></p>
     `
   },
-  { author: "Gentle", text: "May this new orbit around the sun be as precise and extraordinary as the quantum clock you are building. May Your wisdom inspire, your principles guide, and your dedication motivate the people around you. Your kindness always make every moment filled with joy." },
-  
+
   { author: "Ilango", text: "Happy birthday, Man!" },
-  
+  { author: "Gentle", text: "May this new orbit around the sun be as precise and extraordinary as the quantum clock you are building. May Your wisdom inspire, your principles guide, and your dedication motivate the people around you. Your kindness always make every moment filled with joy." },
   { author: "Mehrdad", text: "Wishing you happy birthday filled with joy and success!" },
 
   { author: "Sheng", 
