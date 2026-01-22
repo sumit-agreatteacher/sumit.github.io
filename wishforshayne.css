@@ -1,0 +1,75 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(
+    to bottom,
+    #ffe4ec 0%,
+    #ffd1e1 50%,
+    #fff1f6 100%
+  );
+  font-family: 'Segoe UI', sans-serif;
+}
+
+
+/* 🎂 蛋糕区 */
+.cake-section {
+  text-align: center;
+  padding: 40px 20px 24px;
+}
+
+.cake-section img {
+  width: 220px;          /* 主视觉，不用太小 */
+  max-width: 80%;
+  height: auto;
+}
+
+
+/* 🖼️ 照片区 */
+.gallery-container {
+  width: 100%;
+  padding: 16px 0 32px;
+}
+
+.photo-track {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;             /* 照片之间的呼吸感 */
+  flex-wrap: wrap;
+}
+
+
+/* 📸 单张照片 */
+.photo-track img {
+  height: 450px;        /* ✅ 统一高度（你可以调这个值） */
+  width: auto;          /* ✅ 宽度按比例自动算 */
+  max-width: 100%;      /* 防止极端横图溢出 */
+
+  border-radius: 14px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+  background: #fff;
+
+  transition: transform 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.photo-track img:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22);
+}
+
+
+@media (max-width: 600px) {
+  .photo-track img {
+    height: 140px;
+    width: auto;
+  }
+}
+
+.message-section {
+  text-align: center;
+}
+
+.message-section h1 {
+  text-align: center;
+}
