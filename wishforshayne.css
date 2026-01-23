@@ -73,3 +73,54 @@ body {
 .message-section h1 {
   text-align: center;
 }
+
+/* ✉️ 书信区整体 */
+.letter-section {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px 60px;
+}
+
+/* 📜 信纸本体 */
+.letter-paper {
+  max-width: 720px;
+    background: repeating-linear-gradient(
+    #fffaf3,
+    #fffaf3 28px,
+    #f3e8d8 29px
+  );
+  padding: 36px 40px;
+  border-radius: 12px;
+
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  line-height: 1.6;
+  color: #4a3f35;
+
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.15);
+
+  /* 微微歪一点，更像手写信 */
+  transform: rotate(-0.6deg);
+}
+
+/* 信的标题 */
+.letter-paper h2 {
+  text-align: center;
+  font-size: 32px;
+  margin-bottom: 24px;
+}
+
+/* 每段像手写行距 */
+.letter-paper p {
+  margin-bottom: 16px;
+}
+
+/* ✍️ 签名 */
+.signature {
+  text-align: right;
+  margin-top: 32px;
+  font-size: 24px;
+}
+
+
